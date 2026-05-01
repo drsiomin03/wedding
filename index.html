@@ -113,7 +113,16 @@
             line-height: 1.8;
             font-weight: 300;
             animation: fadeIn 1.2s ease-out 0.6s both;
-            margin-bottom: 50px;
+            margin-bottom: 24px;
+        }
+
+        .guest-name {
+            font-size: clamp(18px, 2.4vw, 24px);
+            color: var(--text);
+            margin-bottom: 24px;
+            min-height: 1.2em;
+            font-weight: 400;
+            animation: fadeIn 1.2s ease-out 0.7s both;
         }
 
         @keyframes fadeInDown {
@@ -542,6 +551,7 @@
         <p class="hero-text">
             Приглашаем вас разделить с нами радость этого особенного дня
         </p>
+        <p class="guest-name" id="guestName"></p>
         <div class="scroll-indicator"></div>
     </section>
 
@@ -665,6 +675,30 @@
     </footer>
 
     <script>
+        // Guest personalization by query param, e.g. ?guest=Анна
+        function setGuestName() {
+            const params = new URLSearchParams(window.location.search);
+            const guest = params.get('guest');
+            const guestNameEl = document.getElementById('guestName');
+
+            if (!guestNameEl) {
+                return;
+            }
+
+            if (!guest) {
+                guestNameEl.textContent = '';
+                return;
+            }
+
+            const normalized = guest.trim().replace(/\s+/g, ' ');
+            if (!normalized) {
+                guestNameEl.textContent = '';
+                return;
+            }
+
+            guestNameEl.textContent = `Дорогой(ая) ${normalized}, ждём вас!`;
+        }
+
         // Countdown Timer
         function updateCountdown() {
             const weddingDate = new Date('2026-07-18T12:00:00').getTime();
@@ -686,6 +720,7 @@
             }
         }
 
+        setGuestName();
         updateCountdown();
         setInterval(updateCountdown, 1000);
 

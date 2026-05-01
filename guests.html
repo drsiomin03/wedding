@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Персональные приглашения</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #7DD3C0;
+            --primary-light: #A8E6CF;
+            --sky: #B4DCE8;
+            --cream: #FDFBF7;
+            --white: #FFFFFF;
+            --text: #2C3E50;
+            --text-light: #5D7184;
+            --shadow: rgba(125, 211, 192, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Jost', sans-serif;
+            background: linear-gradient(180deg, var(--sky) 0%, var(--primary-light) 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        main {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(34px, 5vw, 54px);
+            font-weight: 400;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-light);
+            margin-bottom: 36px;
+            font-size: 18px;
+        }
+
+        .note {
+            background: var(--white);
+            padding: 16px 18px;
+            border-radius: 12px;
+            margin-bottom: 28px;
+            box-shadow: 0 8px 25px var(--shadow);
+            color: var(--text-light);
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 14px;
+            box-shadow: 0 10px 30px var(--shadow);
+            padding: 20px;
+        }
+
+        .guest {
+            font-size: 22px;
+            margin-bottom: 12px;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .url {
+            font-size: 13px;
+            color: var(--text-light);
+            word-break: break-all;
+            margin-bottom: 12px;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        button,
+        a.action {
+            border: none;
+            border-radius: 999px;
+            padding: 10px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: var(--white);
+        }
+
+        button.secondary,
+        a.action {
+            background: #edf8f5;
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Персональные приглашения</h1>
+        <p class="subtitle">Выберите гостя и отправьте ссылку в мессенджер</p>
+        <div class="note">
+            Отредактируйте массив <code>GUESTS</code> внизу файла и добавьте ваш список имён.
+        </div>
+        <div id="cards" class="cards"></div>
+    </main>
+
+    <script>
+        // Add your guest names here.
+        const GUESTS = [
+            "Светлана и Даниил",
+            "Саша, Лена и Эмилия",
+            "Женя, Серёжа, Наеми, Инес, Джоэль",
+            "Артур & Кристина",
+            "Оля",
+            "Света, Юра и Андрей",
+            "Марша и Титас",
+            "Зури и Натали",
+            "Мама Оля и Папа Володя"
+        ];
+
+        function getInviteUrl(name) {
+            const base = new URL("./index.html", window.location.href);
+            base.searchParams.set("guest", name);
+            return base.toString();
+        }
+
+        async function shareGuest(name) {
+            const url = getInviteUrl(name);
+            const text = `Приглашение на свадьбу для ${name}`;
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: "Свадебное приглашение",
+                        text,
+                        url
+                    });
+                    return;
+                } catch (error) {
+                    // User cancelled or share failed.
+                }
+            }
+
+            await navigator.clipboard.writeText(url);
+            alert("Ссылка скопирована в буфер обмена.");
+        }
+
+        function createCard(name) {
+            const inviteUrl = getInviteUrl(name);
+            const tg = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent("Ваше персональное приглашение на свадьбу")}`;
+            const wa = `https://wa.me/?text=${encodeURIComponent("Ваше персональное приглашение на свадьбу: " + inviteUrl)}`;
+            const viber = `viber://forward?text=${encodeURIComponent("Ваше персональное приглашение на свадьбу: " + inviteUrl)}`;
+
+            const card = document.createElement("article");
+            card.className = "card";
+            card.innerHTML = `
+                <div class="guest">${name}</div>
+                <div class="url">${inviteUrl}</div>
+                <div class="actions">
+                    <button class="primary" type="button">Поделиться</button>
+                    <button class="secondary" type="button">Копировать</button>
+                    <a class="action" href="${tg}" target="_blank" rel="noopener noreferrer">Telegram</a>
+                    <a class="action" href="${wa}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                    <a class="action" href="${viber}">Viber</a>
+                </div>
+            `;
+
+            const [shareBtn, copyBtn] = card.querySelectorAll("button");
+            shareBtn.addEventListener("click", () => shareGuest(name));
+            copyBtn.addEventListener("click", async () => {
+                await navigator.clipboard.writeText(inviteUrl);
+                alert("Ссылка скопирована.");
+            });
+
+            return card;
+        }
+
+        function renderGuests() {
+            const cards = document.getElementById("cards");
+            cards.innerHTML = "";
+
+            GUESTS.forEach((name) => {
+                if (!name || !name.trim()) {
+                    return;
+                }
+                cards.appendChild(createCard(name.trim()));
+            });
+        }
+
+        renderGuests();
+    </script>
+</body>
+</html>
