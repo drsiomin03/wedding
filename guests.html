@@ -161,6 +161,8 @@
             background: rgba(0, 0, 0, 0.35);
             padding: 20px;
             z-index: 10;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .modal[hidden] {
@@ -173,6 +175,8 @@
             border-radius: 14px;
             padding: 18px;
             box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
         }
 
         .modal h2 {
@@ -387,10 +391,11 @@
                     <button class="primary" type="button">Поделиться</button>
                     <button class="secondary" type="button">Копировать</button>
                     ${guest.token ? "" : '<button class="secondary issue-btn" type="button">Выпустить ссылку</button>'}
+                    <button class="secondary delete-btn" type="button">Удалить</button>
                 </div>
             `;
 
-            const [editBtn, shareBtn, copyBtn] = card.querySelectorAll("button");
+            const [editBtn, shareBtn, copyBtn, deleteBtn] = card.querySelectorAll("button");
             editBtn.addEventListener("click", () => openEditModal(guest.id));
             shareBtn.addEventListener("click", () => shareGuest(guest));
             copyBtn.addEventListener("click", async () => {
@@ -400,6 +405,21 @@
                 }
                 await navigator.clipboard.writeText(inviteUrl);
                 alert("Ссылка скопирована.");
+            });
+            deleteBtn.addEventListener("click", async () => {
+                const names = formatNames(parseNames(guest.name));
+                const approved = confirm(`Удалить карточку «${names}»? Это действие нельзя отменить.`);
+                if (!approved) {
+                    return;
+                }
+                try {
+                    assertAdminReady();
+                    await window.RSVP_DB.deleteGuest(guest.id);
+                    await loadGuestsFromDb();
+                    await renderGuests();
+                } catch (error) {
+                    alert("Не удалось удалить карточку.");
+                }
             });
             const issueBtn = card.querySelector(".issue-btn");
             if (issueBtn) {
