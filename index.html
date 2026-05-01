@@ -1114,17 +1114,6 @@
 
         const BASE_PAGE_TITLE = 'Олег & Катерина • 18.07.2026';
         const DEFAULT_HERO_INVITE = 'Приглашаем вас разделить с нами радость этого особенного дня';
-        const GUEST_BY_CODE = {
-            a7k2: 'Светлана и Даниил',
-            b4m9: 'Саша, Лена и Эмилия',
-            c8q1: 'Женя, Серёжа, Наеми, Инес, Джоэль',
-            d3p6: 'Артур & Кристина',
-            e5t0: 'Оля',
-            f2n7: 'Света, Юра и Андрей',
-            g9r4: 'Марша и Титас',
-            h6v8: 'Зури и Натали',
-            j1x3: 'Мама Оля и Папа Володя'
-        };
 
         let activeGuestCode = '';
         let activeGuestName = '';
@@ -1245,8 +1234,8 @@
             const guestCode = guestCodeRaw ? guestCodeRaw.trim().toLowerCase() : '';
             const guestTokenRaw = params.get('t');
             const guestToken = guestTokenRaw ? guestTokenRaw.trim() : '';
-            let guestFromCode = guestCode ? GUEST_BY_CODE[guestCode] || '' : '';
-            if (!guestFromCode && guestCode && window.RSVP_DB && window.RSVP_DB.isConfigured()) {
+            let guestFromCode = '';
+            if (guestCode && window.RSVP_DB && window.RSVP_DB.isConfigured()) {
                 try {
                     const meta = await window.RSVP_DB.getInviteMeta(guestCode);
                     guestFromCode = meta && meta.name ? String(meta.name) : '';
@@ -1257,10 +1246,7 @@
             const guestLegacy = params.get('guest');
             const guest = guestFromCode || (guestLegacy ? guestLegacy.trim() : '');
             const normalized = guest ? guest.replace(/\s+/g, ' ') : '';
-            const resolvedCodeFromLegacy = Object.keys(GUEST_BY_CODE).find(
-                (code) => GUEST_BY_CODE[code] === normalized
-            ) || '';
-            activeGuestCode = guestCode || resolvedCodeFromLegacy || '';
+            activeGuestCode = guestCode || '';
             activeGuestName = normalized || '';
             activeGuestToken = guestToken || '';
 

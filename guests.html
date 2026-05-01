@@ -56,11 +56,26 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            flex-wrap: wrap;
             background: var(--white);
             padding: 14px 16px;
             border-radius: 12px;
             margin-bottom: 24px;
             box-shadow: 0 8px 25px var(--shadow);
+        }
+
+        .admin-auth {
+            display: flex;
+            gap: 8px;
+            width: min(480px, 100%);
+        }
+
+        .admin-auth input {
+            flex: 1;
+            border: 1px solid #dbe9e5;
+            border-radius: 999px;
+            padding: 10px 14px;
+            font-family: inherit;
         }
 
         .total-counter {
@@ -212,6 +227,10 @@
         <p class="subtitle">Выберите гостя и отправьте ссылку в мессенджер</p>
         <div class="toolbar">
             <div id="total-counter" class="total-counter"></div>
+            <div class="admin-auth">
+                <input id="admin-token-input" type="password" placeholder="Введите GUESTS_ADMIN_TOKEN" />
+                <button id="admin-token-btn" class="secondary" type="button">Подключить</button>
+            </div>
             <button id="add-card-btn" class="primary" type="button">+ Добавить карточку</button>
         </div>
         <div id="cards" class="cards"></div>
@@ -236,18 +255,8 @@
     <script>
 
         // Short invite codes (do not expose guest names in URL)
-        const INITIAL_GUEST_CODES = [
-            { id: "a7k2", token: "tk_A7m2v9Lq", name: "Светлана и Даниил" },
-            { id: "b4m9", token: "tk_B4p8n1Xr", name: "Саша, Лена и Эмилия" },
-            { id: "c8q1", token: "tk_C8k5t3Wd", name: "Женя, Серёжа, Наеми, Инес, Джоэль" },
-            { id: "d3p6", token: "tk_D3z7r2Ua", name: "Артур & Кристина" },
-            { id: "e5t0", token: "tk_E5h4y6Pn", name: "Оля" },
-            { id: "f2n7", token: "tk_F2q9m8Sb", name: "Света, Юра и Андрей" },
-            { id: "g9r4", token: "tk_G9x1c7Le", name: "Марша и Титас" },
-            { id: "h6v8", token: "tk_H6n3w5Ko", name: "Зури и Натали" },
-            { id: "j1x3", token: "tk_J1r8v4Ti", name: "Мама Оля и Папа Володя" }
-        ];
-        let guestCodes = INITIAL_GUEST_CODES.map((item) => ({ ...item }));
+        let guestCodes = [];
+        const issuedTokens = {};
         let editingId = null;
         let editSelectedNames = [];
         let loadingGuests = false;
@@ -299,11 +308,6 @@
             return id;
         }
 
-        function randomToken() {
-            const part = () => Math.random().toString(36).slice(2, 8);
-            return `tk_${part()}${part()}`;
-        }
-
         function assertAdminReady() {
             if (!window.RSVP_DB || !window.RSVP_DB.isConfigured() || !window.RSVP_DB.hasAdminToken()) {
                 throw new Error("Не настроены Supabase или GUESTS_ADMIN_TOKEN в rsvp-db.js");
@@ -311,6 +315,9 @@
         }
 
         function getInviteUrl(code, token) {
+            if (!token) {
+                return "Сначала нажмите «Выпустить ссылку»";
+            }
             const base = new URL("./index.html", window.location.href);
             base.searchParams.set("g", code);
             base.searchParams.set("t", token || "");
@@ -336,6 +343,10 @@
 
         async function shareGuest(guest) {
             const url = getInviteUrl(guest.id, guest.token);
+            if (!guest.token) {
+                alert("Сначала выпустите ссылку для этого приглашения.");
+                return;
+            }
             const names = formatNames(parseNames(guest.name));
             const text = `Именное приглашение на свадьбу для ${names}`;
 
@@ -377,15 +388,31 @@
                 <div class="actions">
                     <button class="primary" type="button">Поделиться</button>
                     <button class="secondary" type="button">Копировать</button>
+                    <button class="secondary issue-btn" type="button">Выпустить ссылку</button>
                 </div>
             `;
 
-            const [editBtn, shareBtn, copyBtn] = card.querySelectorAll("button");
+            const [editBtn, shareBtn, copyBtn, issueBtn] = card.querySelectorAll("button");
             editBtn.addEventListener("click", () => openEditModal(guest.id));
             shareBtn.addEventListener("click", () => shareGuest(guest));
             copyBtn.addEventListener("click", async () => {
+                if (!guest.token) {
+                    alert("Сначала выпустите ссылку для этого приглашения.");
+                    return;
+                }
                 await navigator.clipboard.writeText(inviteUrl);
                 alert("Ссылка скопирована.");
+            });
+            issueBtn.addEventListener("click", async () => {
+                try {
+                    assertAdminReady();
+                    const result = await window.RSVP_DB.issueGuestLink(guest.id);
+                    guest.token = String(result?.token || "").trim();
+                    issuedTokens[guest.id] = guest.token;
+                    await renderGuests();
+                } catch (error) {
+                    alert("Не удалось выпустить ссылку.");
+                }
             });
 
             return card;
@@ -395,32 +422,12 @@
             assertAdminReady();
             const result = await window.RSVP_DB.listGuests();
             const guests = Array.isArray(result.guests) ? result.guests : [];
-            if (guests.length === 0) {
-                for (const seed of INITIAL_GUEST_CODES) {
-                    // bootstrap DB from initial file once
-                    // eslint-disable-next-line no-await-in-loop
-                    await window.RSVP_DB.upsertGuest({
-                        code: seed.id,
-                        token: seed.token,
-                        name: seed.name
-                    });
-                }
-                const afterSeed = await window.RSVP_DB.listGuests();
-                const seededGuests = Array.isArray(afterSeed.guests) ? afterSeed.guests : [];
-                guestCodes = seededGuests.map((g) => ({
-                    id: String(g.code || "").trim().toLowerCase(),
-                    token: String(g.token || "").trim(),
-                    name: String(g.name || "").trim(),
-                    status: g.status || null
-                })).filter((g) => g.id && g.token && g.name);
-                return;
-            }
             guestCodes = guests.map((g) => ({
                 id: String(g.code || "").trim().toLowerCase(),
-                token: String(g.token || "").trim(),
+                token: String(issuedTokens[String(g.code || "").trim().toLowerCase()] || "").trim(),
                 name: String(g.name || "").trim(),
                 status: g.status || null
-            })).filter((g) => g.id && g.token && g.name);
+            })).filter((g) => g.id && g.name);
         }
 
         async function renderGuests() {
@@ -517,7 +524,6 @@
                 assertAdminReady();
                 await window.RSVP_DB.upsertGuest({
                     code: guest.id,
-                    token: guest.token,
                     name: guest.name
                 });
             } catch (error) {
@@ -530,13 +536,12 @@
         }
 
         async function addCard() {
-            const newGuest = { id: uniqueId(), token: randomToken(), name: "Новый гость" };
+            const newGuest = { id: uniqueId(), token: "", name: "Новый гость" };
             guestCodes.push(newGuest);
             try {
                 assertAdminReady();
                 await window.RSVP_DB.upsertGuest({
                     code: newGuest.id,
-                    token: newGuest.token,
                     name: newGuest.name
                 });
                 await loadGuestsFromDb();
@@ -549,6 +554,18 @@
 
         document.getElementById("add-card-btn").addEventListener("click", () => {
             addCard();
+        });
+        document.getElementById("admin-token-btn").addEventListener("click", async () => {
+            const input = document.getElementById("admin-token-input");
+            const token = input.value.trim();
+            window.RSVP_DB.setAdminToken(token);
+            try {
+                await loadGuestsFromDb();
+                await renderGuests();
+                input.value = "";
+            } catch (error) {
+                alert("Неверный админ-токен или ошибка подключения.");
+            }
         });
         document.getElementById("close-edit-btn").addEventListener("click", closeEditModal);
         document.getElementById("save-edit-btn").addEventListener("click", () => {
@@ -569,7 +586,7 @@
         (async () => {
             try {
                 loadingGuests = true;
-                await loadGuestsFromDb();
+                // wait until admin token is entered by operator
             } catch (error) {
                 alert("Не удалось загрузить гостей из БД. Проверьте SUPABASE_URL / ключи / GUESTS_ADMIN_TOKEN.");
             } finally {

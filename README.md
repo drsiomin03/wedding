@@ -15,14 +15,13 @@
 3. Откройте `rsvp-db.js` и подставьте:
    - `SUPABASE_URL`
    - `SUPABASE_ANON_KEY`
-   - `GUESTS_ADMIN_TOKEN`
 4. Задеплойте Edge Function:
    - `supabase functions deploy rsvp --no-verify-jwt`
    - `supabase secrets set GUESTS_ADMIN_TOKEN=<тот же токен>`
 5. После этого:
    - `index.html` сохраняет ответ гостя (подтвердил/отказ) через Edge Function;
-   - кнопка "Отменить подтверждение" удаляет запись через Edge Function;
-   - `guests.html` читает/пишет карточки гостей полностью из БД.
+    - кнопка "Отменить подтверждение" сбрасывает RSVP-статус через Edge Function;
+   - `guests.html` читает/пишет карточки гостей из БД (после ввода `GUESTS_ADMIN_TOKEN` в интерфейсе).
 
 ## Безопасность (capability tokens)
 
@@ -31,4 +30,5 @@
 - В таблице `invite_tokens` хранится токен и его SHA-256 хэш.
 - Edge Function `rsvp` проверяет токен и только после этого меняет RSVP.
 - Карточки гостей (CRUD) доступны только при валидном `GUESTS_ADMIN_TOKEN` через Edge Function.
+- Список гостей (`admin_list`) не возвращает токены массово; ссылка выпускается отдельно кнопкой "Выпустить ссылку".
 - Прямые `insert/update/delete` от анонимного клиента в `invites` отключены политиками.

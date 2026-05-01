@@ -32,6 +32,16 @@ function ok(body: Record<string, unknown>) {
     });
 }
 
+function randomToken() {
+    const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const chars = crypto.getRandomValues(new Uint8Array(16));
+    let token = "tk_";
+    for (const value of chars) {
+        token += alphabet[value % alphabet.length];
+    }
+    return token;
+}
+
 async function verifyInviteToken(
     supabase: ReturnType<typeof createClient>,
     code: string,
@@ -81,7 +91,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    if (action === "admin_list" || action === "admin_upsert" || action === "admin_delete") {
+    if (action === "admin_list" || action === "admin_upsert" || action === "admin_delete" || action === "admin_issue_link") {
         const adminToken = String(payload?.admin_token || "").trim();
         if (!GUESTS_ADMIN_TOKEN) {
             return bad("Admin token is not configured on server", 500);
@@ -93,18 +103,16 @@ Deno.serve(async (req) => {
         if (action === "admin_list") {
             const { data, error } = await supabase
                 .from("invites")
-                .select("code,name,status,updated_at,invite_tokens(token_plain)")
+                .select("code,name,status,updated_at")
                 .order("code", { ascending: true });
 
             if (error) {
                 return bad(`Failed to list guests: ${error.message}`, 500);
             }
 
-            // no plain tokens in DB; admin provides/updates them from guests.html
             const rows = (data || []).map((row: any) => ({
                 code: row.code,
                 name: row.name,
-                token: row.invite_tokens?.token_plain || "",
                 status: row.status || null,
                 updated_at: row.updated_at || null
             }));
@@ -115,11 +123,9 @@ Deno.serve(async (req) => {
             const code = String(payload?.code || "").trim().toLowerCase();
             const name = String(payload?.name || "").trim();
             const token = String(payload?.token || "").trim();
-            if (!code || !name || !token) {
-                return bad("code, name and token are required");
+            if (!code || !name) {
+                return bad("code and name are required");
             }
-
-            const tokenHash = await sha256Hex(token);
             const nowIso = new Date().toISOString();
 
             const { error: inviteErr } = await supabase.from("invites").upsert(
@@ -134,16 +140,19 @@ Deno.serve(async (req) => {
                 return bad(`Failed to upsert invite: ${inviteErr.message}`, 500);
             }
 
-            const { error: tokenErr } = await supabase.from("invite_tokens").upsert(
-                {
-                    code,
-                    token_plain: token,
-                    token_hash: tokenHash
-                },
-                { onConflict: "code" }
-            );
-            if (tokenErr) {
-                return bad(`Failed to upsert token: ${tokenErr.message}`, 500);
+            if (token) {
+                const tokenHash = await sha256Hex(token);
+                const { error: tokenErr } = await supabase.from("invite_tokens").upsert(
+                    {
+                        code,
+                        token_plain: token,
+                        token_hash: tokenHash
+                    },
+                    { onConflict: "code" }
+                );
+                if (tokenErr) {
+                    return bad(`Failed to upsert token: ${tokenErr.message}`, 500);
+                }
             }
 
             return ok({ ok: true });
@@ -160,6 +169,28 @@ Deno.serve(async (req) => {
                 return bad(`Failed to delete invite: ${error.message}`, 500);
             }
             return ok({ ok: true });
+        }
+
+        if (action === "admin_issue_link") {
+            const code = String(payload?.code || "").trim().toLowerCase();
+            if (!code) {
+                return bad("code is required");
+            }
+
+            const token = randomToken();
+            const tokenHash = await sha256Hex(token);
+            const { error } = await supabase.from("invite_tokens").upsert(
+                {
+                    code,
+                    token_plain: token,
+                    token_hash: tokenHash
+                },
+                { onConflict: "code" }
+            );
+            if (error) {
+                return bad(`Failed to issue invite link: ${error.message}`, 500);
+            }
+            return ok({ code, token });
         }
     }
 
@@ -218,7 +249,10 @@ Deno.serve(async (req) => {
             return bad((error as Error).message, 500);
         }
 
-        const { error } = await supabase.from("invites").delete().eq("code", code);
+        const { error } = await supabase
+            .from("invites")
+            .update({ status: null, updated_at: new Date().toISOString() })
+            .eq("code", code);
         if (error) {
             return bad(`Failed to clear RSVP: ${error.message}`, 500);
         }
