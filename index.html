@@ -15,6 +15,8 @@
             --text: #2C3E50;
             --text-light: #5D7184;
             --shadow: rgba(125, 211, 192, 0.15);
+            --envelope: #E8E8E0;
+            --envelope-dark: #D4D4C8;
         }
 
         * {
@@ -35,117 +37,271 @@
             overflow: hidden;
         }
 
-        .intro-overlay {
+        /* Envelope Container */
+        .envelope-wrapper {
             position: fixed;
-            inset: 0;
-            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(180deg, rgba(180, 220, 232, 0.95) 0%, rgba(168, 230, 207, 0.95) 100%);
-            transition: opacity 0.6s ease, visibility 0.6s ease;
+            z-index: 10000;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
         }
 
-        .intro-overlay.hidden {
+        .envelope-wrapper.hidden {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
         }
 
-        .intro-content {
-            text-align: center;
-            padding: 20px;
-        }
-
-        .intro-title {
-            font-family: 'Playfair Display', serif;
-            font-size: clamp(28px, 5vw, 44px);
-            margin-bottom: 16px;
-        }
-
-        .intro-subtitle {
-            color: var(--text-light);
-            margin-bottom: 28px;
-            font-size: 18px;
-        }
-
-        .envelope {
-            width: min(340px, 80vw);
-            aspect-ratio: 1.5 / 1;
-            border: 0;
-            background: none;
-            cursor: pointer;
+        .envelope-container {
             position: relative;
-            padding: 0;
-            transition: transform 0.25s ease;
+            width: 400px;
+            height: 280px;
+            cursor: pointer;
+            animation: floatEnvelope 3s ease-in-out infinite;
         }
 
-        .envelope:hover {
-            transform: translateY(-4px);
+        @keyframes floatEnvelope {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
         }
 
+        .click-hint {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: var(--text);
+            text-align: center;
+            animation: pulse 2s ease-in-out infinite;
+            font-family: 'Playfair Display', serif;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+        }
+
+        /* Envelope */
+        .envelope {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Envelope Back */
         .envelope-back {
             position: absolute;
+            top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            height: 62%;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 14px 40px rgba(44, 62, 80, 0.18);
+            width: 100%;
+            height: 100%;
+            background: var(--envelope);
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            z-index: 1;
         }
 
+        /* Envelope Flaps - 4 треугольные створки из центра */
         .envelope-flap {
             position: absolute;
+            top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        /* Верхняя треугольная створка */
+        .flap-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background: var(--envelope-dark);
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+            transform-origin: top center;
+            transition: transform 1.5s cubic-bezier(0.4, 0.0, 0.2, 1) 0.5s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Нижняя треугольная створка */
+        .flap-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background: var(--envelope-dark);
+            clip-path: polygon(50% 0, 100% 100%, 0 100%);
+            transform-origin: bottom center;
+            transition: transform 1.5s cubic-bezier(0.4, 0.0, 0.2, 1) 0.5s;
+        }
+
+        /* Левая треугольная створка */
+        .flap-left {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            background: var(--envelope);
+            clip-path: polygon(0 0, 100% 50%, 0 100%);
+            transform-origin: left center;
+            transition: transform 1.5s cubic-bezier(0.4, 0.0, 0.2, 1) 0.5s;
+        }
+
+        /* Правая треугольная створка */
+        .flap-right {
+            position: absolute;
+            top: 0;
             right: 0;
-            top: 16%;
-            margin: 0 auto;
-            width: 0;
-            height: 0;
-            border-left: min(170px, 40vw) solid transparent;
-            border-right: min(170px, 40vw) solid transparent;
-            border-top: min(100px, 24vw) solid #eef8f6;
-            filter: drop-shadow(0 8px 12px rgba(44, 62, 80, 0.12));
+            width: 50%;
+            height: 100%;
+            background: var(--envelope);
+            clip-path: polygon(100% 0, 100% 100%, 0 50%);
+            transform-origin: right center;
+            transition: transform 1.5s cubic-bezier(0.4, 0.0, 0.2, 1) 0.5s;
+        }
+
+        /* Анимация открытия створок - все раскрываются наружу */
+        .envelope-container.opened .flap-top {
+            transform: rotateX(-180deg);
+            z-index: 5;
+        }
+
+        .envelope-container.opened .flap-bottom {
+            transform: rotateX(180deg);
+            z-index: 5;
+        }
+
+        .envelope-container.opened .flap-left {
+            transform: rotateY(180deg);
+            z-index: 5;
+        }
+
+        .envelope-container.opened .flap-right {
+            transform: rotateY(-180deg);
+            z-index: 5;
+        }
+
+        /* Убираем старые стили */
+        .envelope-flap-top {
+            display: none;
         }
 
         .envelope-front {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            margin: 0 auto;
-            width: 100%;
-            height: 62%;
-            background: linear-gradient(135deg, #ffffff 0%, #f3fbf8 100%);
-            clip-path: polygon(0 0, 50% 58%, 100% 0, 100% 100%, 0 100%);
-            border-radius: 0 0 10px 10px;
+            display: none;
         }
 
+        .envelope-front::before,
+        .envelope-front::after {
+            display: none;
+        }
+
+        /* Invitation Card */
+        .invitation-preview {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 85%;
+            background: var(--white);
+            border-radius: 4px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 30px;
+            z-index: 10;
+            transition: transform 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) 1.8s, z-index 0s 1.5s;
+        }
+
+        .envelope-container.opened .invitation-preview {
+            transform: translate(-50%, -150%);
+            z-index: 300;
+        }
+
+        .envelope-container.opened {
+            pointer-events: none;
+        }
+
+        .invitation-preview h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 36px;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .invitation-preview .ampersand-small {
+            font-style: italic;
+            color: var(--primary);
+            margin: 0 8px;
+        }
+
+        .invitation-preview .date {
+            font-size: 16px;
+            color: var(--text-light);
+            letter-spacing: 3px;
+            margin-top: 15px;
+        }
+
+        .invitation-preview .ornament-small {
+            font-size: 32px;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        /* Seal */
         .envelope-seal {
             position: absolute;
+            top: 50%;
             left: 50%;
-            top: 53%;
             transform: translate(-50%, -50%);
-            width: 44px;
-            height: 44px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             border-radius: 50%;
-            background: var(--primary);
-            color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 8px 16px rgba(44, 62, 80, 0.2);
+            font-size: 28px;
+            color: var(--white);
+            box-shadow: 0 4px 15px rgba(125, 211, 192, 0.4);
+            z-index: 200;
+            transition: opacity 0.6s ease, transform 0.6s ease;
         }
 
-        .invitation-content {
+        .envelope-container:hover .envelope-seal {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .envelope-container.opened .envelope-seal {
             opacity: 0;
-            transition: opacity 0.5s ease;
+            transform: translate(-50%, -50%) scale(0);
+            transition: opacity 0.5s ease, transform 0.5s ease;
         }
 
-        .invitation-content.visible {
+        /* Main Content (hidden initially) */
+        .main-content {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 1.2s ease 0.3s, visibility 1.2s ease 0.3s;
+        }
+
+        .main-content.visible {
             opacity: 1;
+            visibility: visible;
         }
 
         /* Hero Section */
@@ -240,6 +396,15 @@
             min-height: 1.2em;
             font-weight: 400;
             animation: fadeIn 1.2s ease-out 0.7s both;
+        }
+
+        .preview-guest {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-top: 12px;
+            line-height: 1.35;
+            max-width: 100%;
+            padding: 0 4px;
         }
 
         @keyframes fadeInDown {
@@ -623,6 +788,19 @@
 
         /* Mobile Responsive */
         @media (max-width: 768px) {
+            .envelope-container {
+                width: 320px;
+                height: 224px;
+            }
+
+            .invitation-preview h2 {
+                font-size: 28px;
+            }
+
+            .invitation-preview .date {
+                font-size: 14px;
+            }
+
             .timeline::before {
                 left: 20px;
             }
@@ -660,195 +838,208 @@
     </style>
 </head>
 <body>
-    <div class="intro-overlay" id="introOverlay">
-        <div class="intro-content">
-            <h2 class="intro-title">Ваше приглашение</h2>
-            <p class="intro-subtitle">Нажмите на конверт, чтобы открыть</p>
-            <button class="envelope" id="openEnvelope" type="button" aria-label="Открыть приглашение">
-                <span class="envelope-back"></span>
-                <span class="envelope-flap"></span>
-                <span class="envelope-front"></span>
-                <span class="envelope-seal">✦</span>
-            </button>
+    <!-- Envelope Wrapper -->
+    <div class="envelope-wrapper" id="envelopeWrapper">
+        <div class="envelope-container" id="envelopeContainer">
+            <div class="click-hint">Нажмите, чтобы открыть</div>
+            
+            <div class="envelope">
+                <div class="envelope-back"></div>
+                
+                <div class="invitation-preview">
+                    <div class="ornament-small">✦</div>
+                    <h2>Олег <span class="ampersand-small">&</span> Катерина</h2>
+                    <div class="date">18 • 07 • 2026</div>
+                    <p class="preview-guest" id="guestNamePreview"></p>
+                </div>
+                
+                <!-- 4 створки конверта -->
+                <div class="envelope-flap">
+                    <div class="flap-top"></div>
+                    <div class="flap-bottom"></div>
+                    <div class="flap-left"></div>
+                    <div class="flap-right"></div>
+                </div>
+                
+                <div class="envelope-seal">✦</div>
+            </div>
         </div>
     </div>
 
-    <div class="invitation-content" id="invitationContent">
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="ornament">✦</div>
-        <h1>Олег <span class="ampersand">&</span> Катерина</h1>
-        <div class="hero-date">18 • 07 • 2026</div>
-        <p class="hero-text">
-            Приглашаем вас разделить с нами радость этого особенного дня
-        </p>
-        <p class="guest-name" id="guestName"></p>
-        <div class="scroll-indicator"></div>
-    </section>
-
-    <!-- Program Section -->
-    <section>
-        <h2 class="section-title">Программа дня</h2>
-        <div class="timeline">
-            <div class="timeline-item">
-                <div class="timeline-dot"></div>
-                <div class="timeline-content">
-                    <div class="timeline-time">12:00</div>
-                    <div class="timeline-title">Венчание</div>
-                    <div class="timeline-desc">Церемония венчания в церкви</div>
-                </div>
-            </div>
-
-            <div class="timeline-item">
-                <div class="timeline-dot"></div>
-                <div class="timeline-content">
-                    <div class="timeline-time">15:00</div>
-                    <div class="timeline-title">Праздничный банкет</div>
-                    <div class="timeline-desc">Торжественный ужин и празднование</div>
-                </div>
-            </div>
-
-            <div class="timeline-item">
-                <div class="timeline-dot"></div>
-                <div class="timeline-content">
-                    <div class="timeline-title" style="margin-top: 10px;">Во время и после банкета</div>
-                    <div class="timeline-desc">Гости свободны ходить по территории базы отдыха, наслаждаться красивыми видами и общаться в тёплой атмосфере</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Countdown Section -->
-    <section class="countdown-section">
-        <h2 class="section-title">До торжества осталось</h2>
-        <div class="countdown" id="countdown">
-            <div class="countdown-item">
-                <div class="countdown-number" id="days">0</div>
-                <div class="countdown-label">Дней</div>
-            </div>
-            <div class="countdown-item">
-                <div class="countdown-number" id="hours">0</div>
-                <div class="countdown-label">Часов</div>
-            </div>
-            <div class="countdown-item">
-                <div class="countdown-number" id="minutes">0</div>
-                <div class="countdown-label">Минут</div>
-            </div>
-            <div class="countdown-item">
-                <div class="countdown-number" id="seconds">0</div>
-                <div class="countdown-label">Секунд</div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Location Section -->
-    <section>
-        <h2 class="section-title">Место проведения</h2>
-        <div class="location-card">
-            <h3>Церковь</h3>
-            <p>
-                Краснодарский край, Павловский район<br>
-                хутор Красный, ул. Советская 357А
+    <!-- Main Content (Initially Hidden) -->
+    <div class="main-content" id="mainContent">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="ornament">✦</div>
+            <h1>Олег <span class="ampersand">&</span> Катерина</h1>
+            <div class="hero-date">18 • 07 • 2026</div>
+            <p class="hero-text">
+                Приглашаем вас разделить с нами радость этого особенного дня
             </p>
-            <a href="https://www.google.com/maps/search/?api=1&query=Краснодарский+край+Павловский+район+хутор+Красный+ул.Советская+357А" target="_blank">Показать на карте</a>
-        </div>
-    </section>
+            <p class="guest-name" id="guestName"></p>
+            <div class="scroll-indicator"></div>
+        </section>
 
-    <!-- RSVP Section -->
-    <section class="rsvp-section">
-        <h2 class="section-title">Подтверждение присутствия</h2>
-        <form class="rsvp-form" id="rsvpForm" onsubmit="handleSubmit(event)">
-            <div class="form-group">
-                <label for="name">Ваше имя</label>
-                <input type="text" id="name" name="name" required>
-            </div>
+        <!-- Program Section -->
+        <section>
+            <h2 class="section-title">Программа дня</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">12:00</div>
+                        <div class="timeline-title">Венчание</div>
+                        <div class="timeline-desc">Церемония венчания в церкви</div>
+                    </div>
+                </div>
 
-            <div class="form-group">
-                <label for="phone">Телефон</label>
-                <input type="tel" id="phone" name="phone" required>
-            </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">15:00</div>
+                        <div class="timeline-title">Праздничный банкет</div>
+                        <div class="timeline-desc">Торжественный ужин и празднование</div>
+                    </div>
+                </div>
 
-            <div class="form-group">
-                <label>Будете ли присутствовать?</label>
-                <div class="radio-group">
-                    <label class="radio-label">
-                        <input type="radio" name="attending" value="yes" required>
-                        Да, буду
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="attending" value="no">
-                        К сожалению, не смогу
-                    </label>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title" style="margin-top: 10px;">Во время и после банкета</div>
+                        <div class="timeline-desc">Гости свободны ходить по территории базы отдыха, наслаждаться красивыми видами и общаться в тёплой атмосфере</div>
+                    </div>
                 </div>
             </div>
+        </section>
 
-            <div class="form-group">
-                <label for="guests">Количество гостей</label>
-                <input type="text" id="guests" name="guests" placeholder="Например: 2">
+        <!-- Countdown Section -->
+        <section class="countdown-section">
+            <h2 class="section-title">До торжества осталось</h2>
+            <div class="countdown" id="countdown">
+                <div class="countdown-item">
+                    <div class="countdown-number" id="days">0</div>
+                    <div class="countdown-label">Дней</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-number" id="hours">0</div>
+                    <div class="countdown-label">Часов</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-number" id="minutes">0</div>
+                    <div class="countdown-label">Минут</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-number" id="seconds">0</div>
+                    <div class="countdown-label">Секунд</div>
+                </div>
             </div>
+        </section>
 
-            <div class="form-group">
-                <label for="comments">Комментарии</label>
-                <textarea id="comments" name="comments" placeholder="Особые пожелания, диетические предпочтения..."></textarea>
+        <!-- Location Section -->
+        <section>
+            <h2 class="section-title">Место проведения</h2>
+            <div class="location-card">
+                <h3>Церковь</h3>
+                <p>
+                    Краснодарский край, Павловский район<br>
+                    хутор Красный, ул. Советская 357А
+                </p>
+                <a href="https://www.google.com/maps/search/?api=1&query=Краснодарский+край+Павловский+район+хутор+Красный+ул.Советская+357А" target="_blank">Показать на карте</a>
             </div>
+        </section>
 
-            <button type="submit" class="submit-btn">Отправить</button>
-        </form>
+        <!-- RSVP Section -->
+        <section class="rsvp-section">
+            <h2 class="section-title">Подтверждение присутствия</h2>
+            <form class="rsvp-form" id="rsvpForm" onsubmit="handleSubmit(event)">
+                <div class="form-group">
+                    <label for="name">Ваше имя</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
 
-        <div class="success-message" id="successMessage">
-            ✓ Спасибо! Ваш ответ принят. Ждём вас на празднике!
-        </div>
-    </section>
+                <div class="form-group">
+                    <label for="phone">Телефон</label>
+                    <input type="tel" id="phone" name="phone" required>
+                </div>
 
-    <!-- Footer -->
-    <footer>
-        <p>Олег & Катерина • 18 июля 2026</p>
-    </footer>
+                <div class="form-group">
+                    <label>Будете ли присутствовать?</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="attending" value="yes" required>
+                            Да, буду
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="attending" value="no">
+                            К сожалению, не смогу
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="guests">Количество гостей</label>
+                    <input type="text" id="guests" name="guests" placeholder="Например: 2">
+                </div>
+
+                <div class="form-group">
+                    <label for="comments">Комментарии</label>
+                    <textarea id="comments" name="comments" placeholder="Особые пожелания, диетические предпочтения..."></textarea>
+                </div>
+
+                <button type="submit" class="submit-btn">Отправить</button>
+            </form>
+
+            <div class="success-message" id="successMessage">
+                ✓ Спасибо! Ваш ответ принят. Ждём вас на празднике!
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>Олег & Катерина • 18 июля 2026</p>
+        </footer>
     </div>
 
     <script>
-        // Guest personalization by query param, e.g. ?guest=Анна
+        // Envelope Animation
+        const envelopeContainer = document.getElementById('envelopeContainer');
+        const envelopeWrapper = document.getElementById('envelopeWrapper');
+        const mainContent = document.getElementById('mainContent');
+
+        document.body.classList.add('no-scroll');
+
         function setGuestName() {
             const params = new URLSearchParams(window.location.search);
             const guest = params.get('guest');
             const guestNameEl = document.getElementById('guestName');
+            const previewEl = document.getElementById('guestNamePreview');
 
-            if (!guestNameEl) {
-                return;
+            const normalized = guest ? guest.trim().replace(/\s+/g, ' ') : '';
+
+            if (guestNameEl) {
+                guestNameEl.textContent = normalized
+                    ? `Дорогой(ая) ${normalized}, ждём вас!`
+                    : '';
             }
 
-            if (!guest) {
-                guestNameEl.textContent = '';
-                return;
+            if (previewEl) {
+                previewEl.textContent = normalized ? `Для ${normalized}` : '';
             }
-
-            const normalized = guest.trim().replace(/\s+/g, ' ');
-            if (!normalized) {
-                guestNameEl.textContent = '';
-                return;
-            }
-
-            guestNameEl.textContent = `Дорогой(ая) ${normalized}, ждём вас!`;
         }
 
-        function setupEnvelope() {
-            const introOverlay = document.getElementById('introOverlay');
-            const invitationContent = document.getElementById('invitationContent');
-            const openEnvelope = document.getElementById('openEnvelope');
+        setGuestName();
 
-            if (!introOverlay || !invitationContent || !openEnvelope) {
-                return;
-            }
-
-            document.body.classList.add('no-scroll');
-
-            openEnvelope.addEventListener('click', () => {
-                introOverlay.classList.add('hidden');
-                invitationContent.classList.add('visible');
+        envelopeContainer.addEventListener('click', function() {
+            envelopeContainer.classList.add('opened');
+            
+            // Печать (0.5с) → створки (0.5-2с) → письмо (1.8-3.6с) → исчезновение
+            setTimeout(() => {
+                envelopeWrapper.classList.add('hidden');
+                mainContent.classList.add('visible');
                 document.body.classList.remove('no-scroll');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            });
-        }
+                window.scrollTo(0, 0);
+            }, 4000);
+        });
 
         // Countdown Timer
         function updateCountdown() {
@@ -871,8 +1062,6 @@
             }
         }
 
-        setGuestName();
-        setupEnvelope();
         updateCountdown();
         setInterval(updateCountdown, 1000);
 
