@@ -149,12 +149,12 @@
 
         async function shareGuest(name) {
             const url = getInviteUrl(name);
-            const text = `Приглашение на свадьбу для ${name}`;
+            const text = `Именное приглашение на свадьбу для ${name}`;
 
             if (navigator.share) {
                 try {
                     await navigator.share({
-                        title: "Свадебное приглашение",
+                        title: `Приглашение для ${name}`,
                         text,
                         url
                     });
@@ -170,9 +170,9 @@
 
         function createCard(name) {
             const inviteUrl = getInviteUrl(name);
-            const tg = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent("Ваше персональное приглашение на свадьбу")}`;
-            const wa = `https://wa.me/?text=${encodeURIComponent("Ваше персональное приглашение на свадьбу: " + inviteUrl)}`;
-            const viber = `viber://forward?text=${encodeURIComponent("Ваше персональное приглашение на свадьбу: " + inviteUrl)}`;
+            const tg = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(`Именное приглашение для ${name}`)}`;
+            const wa = `https://wa.me/?text=${encodeURIComponent(`Именное приглашение для ${name}: ${inviteUrl}`)}`;
+            const viber = `viber://forward?text=${encodeURIComponent(`Именное приглашение для ${name}: ${inviteUrl}`)}`;
 
             const card = document.createElement("article");
             card.className = "card";

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Олег & Катерина • 18.07.2026</title>
+    <meta name="description" content="Свадебное приглашение Олега и Катерины — 18 июля 2026">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -389,15 +390,6 @@
             margin-bottom: 24px;
         }
 
-        .guest-name {
-            font-size: clamp(18px, 2.4vw, 24px);
-            color: var(--text);
-            margin-bottom: 24px;
-            min-height: 1.2em;
-            font-weight: 400;
-            animation: fadeIn 1.2s ease-out 0.7s both;
-        }
-
         .preview-guest {
             font-size: 13px;
             color: var(--text-light);
@@ -660,6 +652,15 @@
             padding: 80px 20px;
         }
 
+        .rsvp-invite-note {
+            max-width: 600px;
+            margin: 0 auto 24px;
+            text-align: center;
+            font-size: clamp(15px, 2vw, 18px);
+            color: var(--text-light);
+            line-height: 1.5;
+        }
+
         .rsvp-form {
             max-width: 600px;
             margin: 0 auto;
@@ -841,7 +842,7 @@
     <!-- Envelope Wrapper -->
     <div class="envelope-wrapper" id="envelopeWrapper">
         <div class="envelope-container" id="envelopeContainer">
-            <div class="click-hint">Нажмите, чтобы открыть</div>
+            <div class="click-hint" id="envelopeClickHint">Нажмите, чтобы открыть</div>
             
             <div class="envelope">
                 <div class="envelope-back"></div>
@@ -873,10 +874,9 @@
             <div class="ornament">✦</div>
             <h1>Олег <span class="ampersand">&</span> Катерина</h1>
             <div class="hero-date">18 • 07 • 2026</div>
-            <p class="hero-text">
+            <p class="hero-text" id="heroInviteText">
                 Приглашаем вас разделить с нами радость этого особенного дня
             </p>
-            <p class="guest-name" id="guestName"></p>
             <div class="scroll-indicator"></div>
         </section>
 
@@ -951,7 +951,9 @@
         <!-- RSVP Section -->
         <section class="rsvp-section">
             <h2 class="section-title">Подтверждение присутствия</h2>
+            <p class="rsvp-invite-note" id="rsvpInviteNote" hidden></p>
             <form class="rsvp-form" id="rsvpForm" onsubmit="handleSubmit(event)">
+                <input type="hidden" name="invited_as" id="invitedAs" value="">
                 <div class="form-group">
                     <label for="name">Ваше имя</label>
                     <input type="text" id="name" name="name" required>
@@ -1008,26 +1010,80 @@
 
         document.body.classList.add('no-scroll');
 
-        function setGuestName() {
+        const BASE_PAGE_TITLE = 'Олег & Катерина • 18.07.2026';
+        const DEFAULT_HERO_INVITE = 'Приглашаем вас разделить с нами радость этого особенного дня';
+
+        function ensureMetaTag(attrName, attrValue, propertyInstead) {
+            const selector = propertyInstead
+                ? `meta[property="${attrValue}"]`
+                : `meta[name="${attrValue}"]`;
+            let el = document.head.querySelector(selector);
+            if (!el) {
+                el = document.createElement('meta');
+                if (propertyInstead) {
+                    el.setAttribute('property', attrValue);
+                } else {
+                    el.setAttribute('name', attrValue);
+                }
+                document.head.appendChild(el);
+            }
+            return el;
+        }
+
+        function applyPersonalization() {
             const params = new URLSearchParams(window.location.search);
             const guest = params.get('guest');
-            const guestNameEl = document.getElementById('guestName');
-            const previewEl = document.getElementById('guestNamePreview');
-
             const normalized = guest ? guest.trim().replace(/\s+/g, ' ') : '';
 
-            if (guestNameEl) {
-                guestNameEl.textContent = normalized
-                    ? `Дорогой(ая) ${normalized}, ждём вас!`
-                    : '';
+            const heroEl = document.getElementById('heroInviteText');
+            const previewEl = document.getElementById('guestNamePreview');
+            const hintEl = document.getElementById('envelopeClickHint');
+            const nameInput = document.getElementById('name');
+            const invitedAs = document.getElementById('invitedAs');
+            const rsvpNote = document.getElementById('rsvpInviteNote');
+
+            if (!normalized) {
+                if (heroEl) heroEl.textContent = DEFAULT_HERO_INVITE;
+                if (previewEl) previewEl.textContent = '';
+                if (hintEl) hintEl.textContent = 'Нажмите, чтобы открыть';
+                document.title = BASE_PAGE_TITLE;
+                ensureMetaTag('name', 'description').setAttribute(
+                    'content',
+                    'Свадебное приглашение Олега и Катерины — 18 июля 2026'
+                );
+                if (nameInput) nameInput.removeAttribute('placeholder');
+                if (invitedAs) invitedAs.value = '';
+                if (rsvpNote) {
+                    rsvpNote.hidden = true;
+                    rsvpNote.textContent = '';
+                }
+                return;
             }
 
-            if (previewEl) {
-                previewEl.textContent = normalized ? `Для ${normalized}` : '';
+            const heroLine = `${normalized}, приглашаем вас разделить с нами радость этого особенного дня`;
+            if (heroEl) heroEl.textContent = heroLine;
+            if (previewEl) previewEl.textContent = `Приглашение для ${normalized}`;
+            if (hintEl) hintEl.textContent = `Откройте конверт — приглашение для ${normalized}`;
+
+            document.title = `${normalized} — ${BASE_PAGE_TITLE}`;
+
+            const desc = `Персональное приглашение на свадьбу для ${normalized}. ${BASE_PAGE_TITLE}`;
+            ensureMetaTag('name', 'description').setAttribute('content', desc);
+            ensureMetaTag('property', 'og:title', true).setAttribute(
+                'content',
+                `${normalized} — приглашение на свадьбу`
+            );
+            ensureMetaTag('property', 'og:description', true).setAttribute('content', desc);
+
+            if (nameInput) nameInput.placeholder = normalized;
+            if (invitedAs) invitedAs.value = normalized;
+            if (rsvpNote) {
+                rsvpNote.hidden = false;
+                rsvpNote.textContent = `Это приглашение адресовано: ${normalized}`;
             }
         }
 
-        setGuestName();
+        applyPersonalization();
 
         envelopeContainer.addEventListener('click', function() {
             envelopeContainer.classList.add('opened');
