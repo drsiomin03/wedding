@@ -1,6 +1,6 @@
 (function () {
-    const SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co";
-    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+    const SUPABASE_URL = "https://uiauuqblbuijgtlpbgeq.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_OILlOPnB8q7WmHaKp-ZCsA_G9wY5MiV";
     const TABLE = "invites";
     const FUNCTION_NAME = "rsvp";
 

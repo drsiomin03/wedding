@@ -30,6 +30,18 @@ drop policy if exists "Public can upsert invites" on public.invites;
 drop policy if exists "Public can update invites" on public.invites;
 drop policy if exists "Public can delete invites" on public.invites;
 
+insert into public.invites (code, name, status, updated_at) values
+('a7k2', 'Светлана и Даниил', null, now()),
+('b4m9', 'Саша, Лена и Эмилия', null, now()),
+('c8q1', 'Женя, Серёжа, Наеми, Инес, Джоэль', null, now()),
+('d3p6', 'Артур & Кристина', null, now()),
+('e5t0', 'Оля', null, now()),
+('f2n7', 'Света, Юра и Андрей', null, now()),
+('g9r4', 'Марша и Титас', null, now()),
+('h6v8', 'Зури и Натали', null, now()),
+('j1x3', 'Мама Оля и Папа Володя', null, now())
+on conflict (code) do update set name = excluded.name;
+
 -- Store hashed tokens (plain tokens are in guests.html)
 insert into public.invite_tokens (code, token_hash) values
 ('a7k2', encode(digest('tk_A7m2v9Lq', 'sha256'), 'hex')),
