@@ -234,6 +234,7 @@
             justify-content: center;
             text-align: center;
             padding: 30px;
+            overflow: hidden;
             z-index: 10;
             transition: transform 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) 1.8s, z-index 0s 1.5s;
         }
@@ -252,6 +253,9 @@
             font-size: 36px;
             color: var(--text);
             margin-bottom: 10px;
+            line-height: 1.2;
+            max-width: 100%;
+            overflow-wrap: anywhere;
         }
 
         .invitation-preview .ampersand-small {
@@ -420,6 +424,8 @@
             margin-top: 12px;
             line-height: 1.35;
             max-width: 100%;
+            overflow-wrap: anywhere;
+            word-break: break-word;
             padding: 0 4px;
         }
 
@@ -855,11 +861,28 @@
             }
 
             .invitation-preview h2 {
-                font-size: 28px;
+                font-size: 24px;
+                line-height: 1.15;
             }
 
             .invitation-preview .date {
                 font-size: 14px;
+            }
+
+            .invitation-preview {
+                width: 92%;
+                height: 86%;
+                padding: 18px 14px;
+            }
+
+            .invitation-preview .ornament-small {
+                font-size: 26px;
+                margin-bottom: 8px;
+            }
+
+            .preview-guest {
+                font-size: 12px;
+                margin-top: 8px;
             }
 
             .timeline::before {
