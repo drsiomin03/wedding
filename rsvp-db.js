@@ -2,6 +2,7 @@
     const SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co";
     const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
     const TABLE = "invites";
+    const FUNCTION_NAME = "rsvp";
 
     function isConfigured() {
         return (
@@ -45,6 +46,29 @@
         return response.json();
     }
 
+    async function functionRequest(payload) {
+        if (!isConfigured()) {
+            throw new Error("Supabase is not configured.");
+        }
+
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/${FUNCTION_NAME}`, {
+            method: "POST",
+            headers: {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`RSVP function failed: ${response.status} ${text}`);
+        }
+
+        return response.json();
+    }
+
     function normalizeStatus(status) {
         return status === "yes" || status === "no" ? status : null;
     }
@@ -64,24 +88,21 @@
             throw new Error("Status must be yes or no.");
         }
 
-        const payload = {
+        await functionRequest({
+            action: "set",
             code: invite.code,
+            token: invite.token,
             name: invite.name,
-            status,
-            updated_at: new Date().toISOString()
-        };
-
-        await request(
-            "POST",
-            TABLE,
-            [payload],
-            "resolution=merge-duplicates,return=representation"
-        );
+            status
+        });
     }
 
-    async function clearInviteStatus(code) {
-        const safe = encodeURIComponent(code);
-        await request("DELETE", `${TABLE}?code=eq.${safe}`, null);
+    async function clearInviteStatus(code, token) {
+        await functionRequest({
+            action: "clear",
+            code,
+            token
+        });
     }
 
     async function getStatuses(codes) {

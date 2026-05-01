@@ -47,17 +47,25 @@
         .subtitle {
             text-align: center;
             color: var(--text-light);
-            margin-bottom: 36px;
+            margin-bottom: 20px;
             font-size: 18px;
         }
 
-        .note {
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
             background: var(--white);
-            padding: 16px 18px;
+            padding: 14px 16px;
             border-radius: 12px;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
             box-shadow: 0 8px 25px var(--shadow);
+        }
+
+        .total-counter {
             color: var(--text-light);
+            font-size: 16px;
         }
 
         .cards {
@@ -73,10 +81,32 @@
             padding: 20px;
         }
 
+        .card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
         .guest {
             font-size: 22px;
             margin-bottom: 12px;
             font-family: 'Playfair Display', serif;
+        }
+
+        .edit-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            padding: 0;
+            flex-shrink: 0;
+            font-size: 15px;
+        }
+
+        .guest-count {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-bottom: 12px;
         }
 
         .url {
@@ -115,37 +145,168 @@
             background: #edf8f5;
             color: var(--text);
         }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 20px;
+            z-index: 10;
+        }
+
+        .modal[hidden] {
+            display: none;
+        }
+
+        .modal-content {
+            width: min(560px, 100%);
+            background: var(--white);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal h2 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 400;
+            margin-bottom: 14px;
+        }
+
+        .name-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .name-grid label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
+            border-radius: 10px;
+            background: #f4fbf9;
+        }
+
+        .new-name-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .new-name-row input {
+            flex: 1;
+            border: 1px solid #dbe9e5;
+            border-radius: 999px;
+            padding: 10px 14px;
+            font-family: inherit;
+        }
     </style>
 </head>
 <body>
     <main>
         <h1>Персональные приглашения</h1>
         <p class="subtitle">Выберите гостя и отправьте ссылку в мессенджер</p>
-        <div class="note">
-            Отредактируйте массив <code>GUEST_CODES</code> внизу файла и добавьте пары <code>{ id, name }</code>.
+        <div class="toolbar">
+            <div id="total-counter" class="total-counter"></div>
+            <button id="add-card-btn" class="primary" type="button">+ Добавить карточку</button>
         </div>
         <div id="cards" class="cards"></div>
     </main>
+
+    <div id="edit-modal" class="modal" hidden>
+        <div class="modal-content">
+            <h2>Редактирование гостей</h2>
+            <div id="name-grid" class="name-grid"></div>
+            <div class="new-name-row">
+                <input id="new-name-input" type="text" placeholder="Добавить нового гостя" />
+                <button id="new-name-btn" class="secondary" type="button">Добавить</button>
+            </div>
+            <div class="actions">
+                <button id="save-edit-btn" class="primary" type="button">Сохранить</button>
+                <button id="close-edit-btn" class="secondary" type="button">Отмена</button>
+            </div>
+        </div>
+    </div>
 
     <script src="./rsvp-db.js"></script>
     <script>
 
         // Short invite codes (do not expose guest names in URL)
-        const GUEST_CODES = [
-            { id: "a7k2", name: "Светлана и Даниил" },
-            { id: "b4m9", name: "Саша, Лена и Эмилия" },
-            { id: "c8q1", name: "Женя, Серёжа, Наеми, Инес, Джоэль" },
-            { id: "d3p6", name: "Артур & Кристина" },
-            { id: "e5t0", name: "Оля" },
-            { id: "f2n7", name: "Света, Юра и Андрей" },
-            { id: "g9r4", name: "Марша и Титас" },
-            { id: "h6v8", name: "Зури и Натали" },
-            { id: "j1x3", name: "Мама Оля и Папа Володя" }
+        const INITIAL_GUEST_CODES = [
+            { id: "a7k2", token: "tk_A7m2v9Lq", name: "Светлана и Даниил" },
+            { id: "b4m9", token: "tk_B4p8n1Xr", name: "Саша, Лена и Эмилия" },
+            { id: "c8q1", token: "tk_C8k5t3Wd", name: "Женя, Серёжа, Наеми, Инес, Джоэль" },
+            { id: "d3p6", token: "tk_D3z7r2Ua", name: "Артур & Кристина" },
+            { id: "e5t0", token: "tk_E5h4y6Pn", name: "Оля" },
+            { id: "f2n7", token: "tk_F2q9m8Sb", name: "Света, Юра и Андрей" },
+            { id: "g9r4", token: "tk_G9x1c7Le", name: "Марша и Титас" },
+            { id: "h6v8", token: "tk_H6n3w5Ko", name: "Зури и Натали" },
+            { id: "j1x3", token: "tk_J1r8v4Ti", name: "Мама Оля и Папа Володя" }
         ];
+        let guestCodes = INITIAL_GUEST_CODES.map((item) => ({ ...item }));
+        let editingId = null;
+        let editSelectedNames = [];
 
-        function getInviteUrl(code) {
+        function parseNames(value) {
+            return String(value || "")
+                .replace(/\s*&\s*/g, ",")
+                .replace(/\s+и\s+/gi, ",")
+                .split(",")
+                .map((name) => name.trim())
+                .filter(Boolean);
+        }
+
+        function formatNames(names) {
+            if (!names.length) {
+                return "Без гостей";
+            }
+            if (names.length === 1) {
+                return names[0];
+            }
+            if (names.length === 2) {
+                return `${names[0]} и ${names[1]}`;
+            }
+            return `${names.slice(0, -1).join(", ")} и ${names[names.length - 1]}`;
+        }
+
+        function buildNamePool() {
+            const pool = new Set();
+            guestCodes.forEach((guest) => {
+                parseNames(guest.name).forEach((name) => pool.add(name));
+            });
+            return Array.from(pool).sort((a, b) => a.localeCompare(b, "ru"));
+        }
+
+        function totalGuestsCount() {
+            return guestCodes.reduce((sum, guest) => sum + parseNames(guest.name).length, 0);
+        }
+
+        function randomId() {
+            return Math.random().toString(36).slice(2, 6);
+        }
+
+        function uniqueId() {
+            const used = new Set(guestCodes.map((guest) => guest.id));
+            let id = randomId();
+            while (used.has(id)) {
+                id = randomId();
+            }
+            return id;
+        }
+
+        function randomToken() {
+            const part = () => Math.random().toString(36).slice(2, 8);
+            return `tk_${part()}${part()}`;
+        }
+
+        function getInviteUrl(code, token) {
             const base = new URL("./index.html", window.location.href);
             base.searchParams.set("g", code);
+            base.searchParams.set("t", token || "");
             base.searchParams.set("v", "3");
             return base.toString();
         }
@@ -167,13 +328,14 @@
         }
 
         async function shareGuest(guest) {
-            const url = getInviteUrl(guest.id);
-            const text = `Именное приглашение на свадьбу для ${guest.name}`;
+            const url = getInviteUrl(guest.id, guest.token);
+            const names = formatNames(parseNames(guest.name));
+            const text = `Именное приглашение на свадьбу для ${names}`;
 
             if (navigator.share) {
                 try {
                     await navigator.share({
-                        title: `Приглашение для ${guest.name}`,
+                        title: `Приглашение для ${names}`,
                         text,
                         url
                     });
@@ -188,13 +350,19 @@
         }
 
         function createCard(guest, statusRec) {
-            const inviteUrl = getInviteUrl(guest.id);
+            const inviteUrl = getInviteUrl(guest.id, guest.token);
             const status = getStatusMeta(statusRec);
+            const names = parseNames(guest.name);
+            const displayName = formatNames(names);
 
             const card = document.createElement("article");
             card.className = "card";
             card.innerHTML = `
-                <div class="guest">${guest.name}</div>
+                <div class="card-top">
+                    <div class="guest">${displayName}</div>
+                    <button class="secondary edit-btn" type="button" title="Редактировать гостей">✏</button>
+                </div>
+                <div class="guest-count">Гостей: ${names.length}</div>
                 <div class="url">${inviteUrl}</div>
                 <div style="font-size:12px;border-radius:999px;display:inline-block;padding:5px 10px;margin-bottom:12px;${status.style}">
                     ${status.text}
@@ -205,7 +373,8 @@
                 </div>
             `;
 
-            const [shareBtn, copyBtn] = card.querySelectorAll("button");
+            const [editBtn, shareBtn, copyBtn] = card.querySelectorAll("button");
+            editBtn.addEventListener("click", () => openEditModal(guest.id));
             shareBtn.addEventListener("click", () => shareGuest(guest));
             copyBtn.addEventListener("click", async () => {
                 await navigator.clipboard.writeText(inviteUrl);
@@ -220,13 +389,14 @@
             cards.innerHTML = "";
             const normalizedGuests = [];
 
-            GUEST_CODES.forEach((guest) => {
-                if (!guest || !guest.id || !guest.name) {
+            guestCodes.forEach((guest) => {
+                if (!guest || !guest.id) {
                     return;
                 }
                 normalizedGuests.push({
                     id: String(guest.id).trim().toLowerCase(),
-                    name: String(guest.name).trim()
+                    token: String(guest.token || "").trim(),
+                    name: String(guest.name || "").trim()
                 });
             });
 
@@ -242,7 +412,101 @@
             normalizedGuests.forEach((guest) => {
                 cards.appendChild(createCard(guest, statuses[guest.id]));
             });
+
+            document.getElementById("total-counter").textContent = `Всего гостей: ${totalGuestsCount()}`;
         }
+
+        function closeEditModal() {
+            editingId = null;
+            editSelectedNames = [];
+            document.getElementById("new-name-input").value = "";
+            document.getElementById("edit-modal").hidden = true;
+        }
+
+        function renderEditorOptions() {
+            const grid = document.getElementById("name-grid");
+            const names = buildNamePool();
+            grid.innerHTML = "";
+
+            names.forEach((name) => {
+                const label = document.createElement("label");
+                label.innerHTML = `
+                    <input type="checkbox" ${editSelectedNames.includes(name) ? "checked" : ""} />
+                    <span>${name}</span>
+                `;
+                const checkbox = label.querySelector("input");
+                checkbox.addEventListener("change", (event) => {
+                    if (event.target.checked) {
+                        if (!editSelectedNames.includes(name)) {
+                            editSelectedNames.push(name);
+                        }
+                    } else {
+                        editSelectedNames = editSelectedNames.filter((current) => current !== name);
+                    }
+                });
+                grid.appendChild(label);
+            });
+        }
+
+        function openEditModal(guestId) {
+            const guest = guestCodes.find((item) => item.id === guestId);
+            if (!guest) {
+                return;
+            }
+
+            editingId = guestId;
+            editSelectedNames = parseNames(guest.name);
+            renderEditorOptions();
+            document.getElementById("edit-modal").hidden = false;
+        }
+
+        function addNameFromInput() {
+            const input = document.getElementById("new-name-input");
+            const value = input.value.trim();
+            if (!value) {
+                return;
+            }
+            if (!editSelectedNames.includes(value)) {
+                editSelectedNames.push(value);
+            }
+            input.value = "";
+            renderEditorOptions();
+        }
+
+        function saveEditModal() {
+            if (!editingId) {
+                return;
+            }
+            const guest = guestCodes.find((item) => item.id === editingId);
+            if (!guest) {
+                closeEditModal();
+                return;
+            }
+            guest.name = formatNames(editSelectedNames);
+            closeEditModal();
+            renderGuests();
+        }
+
+        function addCard() {
+            const newGuest = { id: uniqueId(), token: randomToken(), name: "Новый гость" };
+            guestCodes.push(newGuest);
+            renderGuests().then(() => openEditModal(newGuest.id));
+        }
+
+        document.getElementById("add-card-btn").addEventListener("click", addCard);
+        document.getElementById("close-edit-btn").addEventListener("click", closeEditModal);
+        document.getElementById("save-edit-btn").addEventListener("click", saveEditModal);
+        document.getElementById("new-name-btn").addEventListener("click", addNameFromInput);
+        document.getElementById("new-name-input").addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                addNameFromInput();
+            }
+        });
+        document.getElementById("edit-modal").addEventListener("click", (event) => {
+            if (event.target.id === "edit-modal") {
+                closeEditModal();
+            }
+        });
 
         renderGuests();
     </script>

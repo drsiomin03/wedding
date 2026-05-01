@@ -1128,6 +1128,7 @@
 
         let activeGuestCode = '';
         let activeGuestName = '';
+        let activeGuestToken = '';
 
         function setStatusMessage(message, withResetButton) {
             const statusMessage = document.getElementById('statusMessage');
@@ -1206,14 +1207,14 @@
         }
 
         async function clearCurrentRsvp() {
-            if (!activeGuestCode) {
+            if (!activeGuestCode || !activeGuestToken) {
                 return;
             }
             if (!window.RSVP_DB || !window.RSVP_DB.isConfigured()) {
                 return;
             }
             try {
-                await window.RSVP_DB.clearInviteStatus(activeGuestCode);
+                await window.RSVP_DB.clearInviteStatus(activeGuestCode, activeGuestToken);
                 setFormVisibility(true);
                 hideStatusMessage();
             } catch (error) {
@@ -1242,6 +1243,8 @@
             const params = new URLSearchParams(window.location.search);
             const guestCodeRaw = params.get('g');
             const guestCode = guestCodeRaw ? guestCodeRaw.trim().toLowerCase() : '';
+            const guestTokenRaw = params.get('t');
+            const guestToken = guestTokenRaw ? guestTokenRaw.trim() : '';
             const guestFromCode = guestCode ? GUEST_BY_CODE[guestCode] || '' : '';
             const guestLegacy = params.get('guest');
             const guest = guestFromCode || (guestLegacy ? guestLegacy.trim() : '');
@@ -1251,6 +1254,7 @@
             ) || '';
             activeGuestCode = guestCode || resolvedCodeFromLegacy || '';
             activeGuestName = normalized || '';
+            activeGuestToken = guestToken || '';
 
             const heroEl = document.getElementById('heroInviteText');
             const previewEl = document.getElementById('guestNamePreview');
@@ -1296,7 +1300,7 @@
             ensureMetaTag('property', 'og:description', true).setAttribute('content', desc);
 
             if (invitedAs) invitedAs.value = normalized;
-            if (rsvpFieldset) rsvpFieldset.disabled = false;
+            if (rsvpFieldset) rsvpFieldset.disabled = !activeGuestToken;
             if (rsvpBanner) {
                 rsvpBanner.className = 'rsvp-guest-banner';
                 rsvpBanner.innerHTML = '';
@@ -1308,6 +1312,13 @@
                 names.textContent = normalized;
                 rsvpBanner.appendChild(lab);
                 rsvpBanner.appendChild(names);
+                if (!activeGuestToken) {
+                    const warn = document.createElement('div');
+                    warn.className = 'rsvp-guest-label';
+                    warn.style.marginTop = '8px';
+                    warn.textContent = 'Недействительная ссылка приглашения (нет токена).';
+                    rsvpBanner.appendChild(warn);
+                }
             }
 
             refreshRsvpUi();
@@ -1358,7 +1369,7 @@
             const formData = new FormData(event.target);
             const data = Object.fromEntries(formData.entries());
 
-            if (!activeGuestCode) {
+            if (!activeGuestCode || !activeGuestToken) {
                 return;
             }
             if (!window.RSVP_DB || !window.RSVP_DB.isConfigured()) {
@@ -1369,6 +1380,7 @@
             try {
                 await window.RSVP_DB.setInviteStatus({
                     code: activeGuestCode,
+                    token: activeGuestToken,
                     name: activeGuestName || data.invited_as || '',
                     status: data.attending || ''
                 });
