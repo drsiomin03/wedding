@@ -386,11 +386,11 @@
                 <div class="actions">
                     <button class="primary" type="button">Поделиться</button>
                     <button class="secondary" type="button">Копировать</button>
-                    <button class="secondary issue-btn" type="button">Выпустить ссылку</button>
+                    ${guest.token ? "" : '<button class="secondary issue-btn" type="button">Выпустить ссылку</button>'}
                 </div>
             `;
 
-            const [editBtn, shareBtn, copyBtn, issueBtn] = card.querySelectorAll("button");
+            const [editBtn, shareBtn, copyBtn] = card.querySelectorAll("button");
             editBtn.addEventListener("click", () => openEditModal(guest.id));
             shareBtn.addEventListener("click", () => shareGuest(guest));
             copyBtn.addEventListener("click", async () => {
@@ -401,17 +401,20 @@
                 await navigator.clipboard.writeText(inviteUrl);
                 alert("Ссылка скопирована.");
             });
-            issueBtn.addEventListener("click", async () => {
-                try {
-                    assertAdminReady();
-                    const result = await window.RSVP_DB.issueGuestLink(guest.id);
-                    guest.token = String(result?.token || "").trim();
-                    await loadGuestsFromDb();
-                    await renderGuests();
-                } catch (error) {
-                    alert("Не удалось выпустить ссылку.");
-                }
-            });
+            const issueBtn = card.querySelector(".issue-btn");
+            if (issueBtn) {
+                issueBtn.addEventListener("click", async () => {
+                    try {
+                        assertAdminReady();
+                        const result = await window.RSVP_DB.issueGuestLink(guest.id);
+                        guest.token = String(result?.token || "").trim();
+                        await loadGuestsFromDb();
+                        await renderGuests();
+                    } catch (error) {
+                        alert("Не удалось выпустить ссылку.");
+                    }
+                });
+            }
 
             return card;
         }
