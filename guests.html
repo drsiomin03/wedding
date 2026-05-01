@@ -251,6 +251,7 @@
         let editingId = null;
         let editSelectedNames = [];
         let loadingGuests = false;
+        const NEW_GUEST_PLACEHOLDER = "Новый гость";
 
         function parseNames(value) {
             return String(value || "")
@@ -277,7 +278,9 @@
         function buildNamePool() {
             const pool = new Set();
             guestCodes.forEach((guest) => {
-                parseNames(guest.name).forEach((name) => pool.add(name));
+                parseNames(guest.name)
+                    .filter((name) => name !== NEW_GUEST_PLACEHOLDER)
+                    .forEach((name) => pool.add(name));
             });
             return Array.from(pool).sort((a, b) => a.localeCompare(b, "ru"));
         }
@@ -395,7 +398,10 @@
                 </div>
             `;
 
-            const [editBtn, shareBtn, copyBtn, deleteBtn] = card.querySelectorAll("button");
+            const editBtn = card.querySelector(".edit-btn");
+            const shareBtn = card.querySelector(".primary");
+            const copyBtn = card.querySelector(".actions .secondary");
+            const deleteBtn = card.querySelector(".delete-btn");
             editBtn.addEventListener("click", () => openEditModal(guest.id));
             shareBtn.addEventListener("click", () => shareGuest(guest));
             copyBtn.addEventListener("click", async () => {
@@ -519,7 +525,9 @@
             }
 
             editingId = guestId;
-            editSelectedNames = parseNames(guest.name);
+            editSelectedNames = parseNames(guest.name).filter(
+                (name) => name !== NEW_GUEST_PLACEHOLDER
+            );
             renderEditorOptions();
             document.getElementById("edit-modal").hidden = false;
         }
@@ -563,7 +571,7 @@
         }
 
         async function addCard() {
-            const newGuest = { id: uniqueId(), token: "", name: "Новый гость" };
+            const newGuest = { id: uniqueId(), token: "", name: NEW_GUEST_PLACEHOLDER };
             try {
                 assertAdminReady();
                 await window.RSVP_DB.upsertGuest({
