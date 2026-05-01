@@ -902,7 +902,7 @@
     <!-- Envelope Wrapper -->
     <div class="envelope-wrapper" id="envelopeWrapper">
         <div class="envelope-container" id="envelopeContainer">
-            <div class="click-hint" id="envelopeClickHint">Нажмите, чтобы открыть</div>
+            <div class="click-hint" id="envelopeClickHint">Откройте приглашение</div>
             
             <div class="envelope">
                 <div class="envelope-back"></div>
@@ -1088,7 +1088,7 @@
             if (!normalized) {
                 if (heroEl) heroEl.textContent = DEFAULT_HERO_INVITE;
                 if (previewEl) previewEl.textContent = '';
-                if (hintEl) hintEl.textContent = 'Нажмите, чтобы открыть';
+                if (hintEl) hintEl.textContent = 'Откройте приглашение';
                 document.title = BASE_PAGE_TITLE;
                 ensureMetaTag('name', 'description').setAttribute(
                     'content',
@@ -1107,7 +1107,7 @@
             const heroLine = `${normalized}, приглашаем вас разделить с нами радость этого особенного дня`;
             if (heroEl) heroEl.textContent = heroLine;
             if (previewEl) previewEl.textContent = `Приглашение для ${normalized}`;
-            if (hintEl) hintEl.textContent = `Откройте конверт — приглашение для ${normalized}`;
+            if (hintEl) hintEl.textContent = 'Откройте приглашение';
 
             document.title = `${normalized} — ${BASE_PAGE_TITLE}`;
 
