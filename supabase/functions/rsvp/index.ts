@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
         if (action === "admin_list") {
             const { data, error } = await supabase
                 .from("invites")
-                .select("code,name,status,updated_at")
+                .select("code,name,status,updated_at,invite_tokens(token_plain)")
                 .order("code", { ascending: true });
 
             if (error) {
@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
             const rows = (data || []).map((row: any) => ({
                 code: row.code,
                 name: row.name,
+                token: row.invite_tokens?.token_plain || "",
                 status: row.status || null,
                 updated_at: row.updated_at || null
             }));

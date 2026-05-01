@@ -64,20 +64,6 @@
             box-shadow: 0 8px 25px var(--shadow);
         }
 
-        .admin-auth {
-            display: flex;
-            gap: 8px;
-            width: min(480px, 100%);
-        }
-
-        .admin-auth input {
-            flex: 1;
-            border: 1px solid #dbe9e5;
-            border-radius: 999px;
-            padding: 10px 14px;
-            font-family: inherit;
-        }
-
         .total-counter {
             color: var(--text-light);
             font-size: 16px;
@@ -227,10 +213,6 @@
         <p class="subtitle">Выберите гостя и отправьте ссылку в мессенджер</p>
         <div class="toolbar">
             <div id="total-counter" class="total-counter"></div>
-            <div class="admin-auth">
-                <input id="admin-token-input" type="password" placeholder="Введите GUESTS_ADMIN_TOKEN" />
-                <button id="admin-token-btn" class="secondary" type="button">Подключить</button>
-            </div>
             <button id="add-card-btn" class="primary" type="button">+ Добавить карточку</button>
         </div>
         <div id="cards" class="cards"></div>
@@ -256,7 +238,6 @@
 
         // Short invite codes (do not expose guest names in URL)
         let guestCodes = [];
-        const issuedTokens = {};
         let editingId = null;
         let editSelectedNames = [];
         let loadingGuests = false;
@@ -408,7 +389,7 @@
                     assertAdminReady();
                     const result = await window.RSVP_DB.issueGuestLink(guest.id);
                     guest.token = String(result?.token || "").trim();
-                    issuedTokens[guest.id] = guest.token;
+                    await loadGuestsFromDb();
                     await renderGuests();
                 } catch (error) {
                     alert("Не удалось выпустить ссылку.");
@@ -424,7 +405,7 @@
             const guests = Array.isArray(result.guests) ? result.guests : [];
             guestCodes = guests.map((g) => ({
                 id: String(g.code || "").trim().toLowerCase(),
-                token: String(issuedTokens[String(g.code || "").trim().toLowerCase()] || "").trim(),
+                token: String(g.token || "").trim(),
                 name: String(g.name || "").trim(),
                 status: g.status || null
             })).filter((g) => g.id && g.name);
@@ -442,7 +423,8 @@
                 normalizedGuests.push({
                     id: String(guest.id).trim().toLowerCase(),
                     token: String(guest.token || "").trim(),
-                    name: String(guest.name || "").trim()
+                    name: String(guest.name || "").trim(),
+                    status: guest.status || null
                 });
             });
 
@@ -462,7 +444,10 @@
 
         function renderEditorOptions() {
             const grid = document.getElementById("name-grid");
-            const names = buildNamePool();
+            const names = Array.from(new Set([
+                ...buildNamePool(),
+                ...editSelectedNames
+            ])).sort((a, b) => a.localeCompare(b, "ru"));
             grid.innerHTML = "";
 
             names.forEach((name) => {
@@ -537,7 +522,6 @@
 
         async function addCard() {
             const newGuest = { id: uniqueId(), token: "", name: "Новый гость" };
-            guestCodes.push(newGuest);
             try {
                 assertAdminReady();
                 await window.RSVP_DB.upsertGuest({
@@ -554,18 +538,6 @@
 
         document.getElementById("add-card-btn").addEventListener("click", () => {
             addCard();
-        });
-        document.getElementById("admin-token-btn").addEventListener("click", async () => {
-            const input = document.getElementById("admin-token-input");
-            const token = input.value.trim();
-            window.RSVP_DB.setAdminToken(token);
-            try {
-                await loadGuestsFromDb();
-                await renderGuests();
-                input.value = "";
-            } catch (error) {
-                alert("Неверный админ-токен или ошибка подключения.");
-            }
         });
         document.getElementById("close-edit-btn").addEventListener("click", closeEditModal);
         document.getElementById("save-edit-btn").addEventListener("click", () => {
@@ -586,7 +558,7 @@
         (async () => {
             try {
                 loadingGuests = true;
-                // wait until admin token is entered by operator
+                await loadGuestsFromDb();
             } catch (error) {
                 alert("Не удалось загрузить гостей из БД. Проверьте SUPABASE_URL / ключи / GUESTS_ADMIN_TOKEN.");
             } finally {

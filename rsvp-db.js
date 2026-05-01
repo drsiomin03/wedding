@@ -1,9 +1,10 @@
 (function () {
     const SUPABASE_URL = "https://uiauuqblbuijgtlpbgeq.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_OILlOPnB8q7WmHaKp-ZCsA_G9wY5MiV";
+    const GUESTS_ADMIN_TOKEN = "adm_Guests_2026_zm1r4TPbwLxaODUXMYNEp0GW";
     const TABLE = "invites";
     const FUNCTION_NAME = "rsvp";
-    let guestsAdminToken = "";
+    let guestsAdminToken = GUESTS_ADMIN_TOKEN;
 
     function isConfigured() {
         return (
