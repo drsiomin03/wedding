@@ -48,6 +48,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: visible;
             z-index: 10000;
             transition: opacity 0.8s ease, visibility 0.8s ease;
         }
@@ -64,6 +65,7 @@
             height: 280px;
             cursor: pointer;
             animation: floatEnvelope 3s ease-in-out infinite;
+            margin-top: clamp(100px, 22vh, 160px);
         }
 
         @keyframes floatEnvelope {
@@ -73,19 +75,27 @@
 
         .click-hint {
             position: absolute;
-            top: -60px;
             left: 50%;
+            top: auto;
+            bottom: calc(100% + 20px);
             transform: translateX(-50%);
+            z-index: 250;
+            max-width: min(420px, 92vw);
+            padding: 0 12px;
+            box-sizing: border-box;
             font-size: 18px;
             color: var(--text);
             text-align: center;
+            line-height: 1.45;
             animation: pulse 2s ease-in-out infinite;
             font-family: 'Playfair Display', serif;
+            pointer-events: none;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
-            50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+            0%, 100% { opacity: 0.75; transform: translateX(-50%) scale(1); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.03); }
         }
 
         /* Envelope */
@@ -821,6 +831,13 @@
             .envelope-container {
                 width: 320px;
                 height: 224px;
+                margin-top: clamp(120px, 28vh, 200px);
+            }
+
+            .click-hint {
+                font-size: 16px;
+                bottom: calc(100% + 14px);
+                max-width: min(340px, 94vw);
             }
 
             .invitation-preview h2 {
