@@ -171,9 +171,6 @@
 
         function createCard(guest) {
             const inviteUrl = getInviteUrl(guest.id);
-            const tg = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(`Именное приглашение для ${guest.name}`)}`;
-            const wa = `https://wa.me/?text=${encodeURIComponent(`Именное приглашение для ${guest.name}: ${inviteUrl}`)}`;
-            const viber = `viber://forward?text=${encodeURIComponent(`Именное приглашение для ${guest.name}: ${inviteUrl}`)}`;
 
             const card = document.createElement("article");
             card.className = "card";
@@ -183,9 +180,6 @@
                 <div class="actions">
                     <button class="primary" type="button">Поделиться</button>
                     <button class="secondary" type="button">Копировать</button>
-                    <a class="action" href="${tg}" target="_blank" rel="noopener noreferrer">Telegram</a>
-                    <a class="action" href="${wa}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-                    <a class="action" href="${viber}">Viber</a>
                 </div>
             `;
 
