@@ -652,13 +652,42 @@
             padding: 80px 20px;
         }
 
-        .rsvp-invite-note {
+        .rsvp-guest-banner {
             max-width: 600px;
-            margin: 0 auto 24px;
+            margin: 0 auto 28px;
             text-align: center;
-            font-size: clamp(15px, 2vw, 18px);
+        }
+
+        .rsvp-guest-banner .rsvp-guest-label {
+            font-size: 13px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
             color: var(--text-light);
-            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .rsvp-guest-banner .rsvp-guest-names {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(22px, 3vw, 32px);
+            color: var(--text);
+            line-height: 1.35;
+        }
+
+        .rsvp-guest-banner.rsvp-guest-banner--hint {
+            font-size: 17px;
+            color: var(--text-light);
+            line-height: 1.55;
+        }
+
+        .rsvp-fieldset {
+            border: none;
+            padding: 0;
+            margin: 0;
+            min-width: 0;
+        }
+
+        .rsvp-fieldset:disabled {
+            opacity: 0.55;
         }
 
         .rsvp-form {
@@ -951,44 +980,26 @@
         <!-- RSVP Section -->
         <section class="rsvp-section">
             <h2 class="section-title">Подтверждение присутствия</h2>
-            <p class="rsvp-invite-note" id="rsvpInviteNote" hidden></p>
+            <div class="rsvp-guest-banner" id="rsvpGuestBanner"></div>
             <form class="rsvp-form" id="rsvpForm" onsubmit="handleSubmit(event)">
                 <input type="hidden" name="invited_as" id="invitedAs" value="">
-                <div class="form-group">
-                    <label for="name">Ваше имя</label>
-                    <input type="text" id="name" name="name" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="phone">Телефон</label>
-                    <input type="tel" id="phone" name="phone" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Будете ли присутствовать?</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="attending" value="yes" required>
-                            Да, буду
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="attending" value="no">
-                            К сожалению, не смогу
-                        </label>
+                <fieldset class="rsvp-fieldset" id="rsvpFieldset">
+                    <div class="form-group">
+                        <label>Будете ли присутствовать?</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="attending" value="yes" required>
+                                Да, буду
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="attending" value="no">
+                                К сожалению, не смогу
+                            </label>
+                        </div>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label for="guests">Количество гостей</label>
-                    <input type="text" id="guests" name="guests" placeholder="Например: 2">
-                </div>
-
-                <div class="form-group">
-                    <label for="comments">Комментарии</label>
-                    <textarea id="comments" name="comments" placeholder="Особые пожелания, диетические предпочтения..."></textarea>
-                </div>
-
-                <button type="submit" class="submit-btn">Отправить</button>
+                    <button type="submit" class="submit-btn">Отправить</button>
+                </fieldset>
             </form>
 
             <div class="success-message" id="successMessage">
@@ -1038,9 +1049,9 @@
             const heroEl = document.getElementById('heroInviteText');
             const previewEl = document.getElementById('guestNamePreview');
             const hintEl = document.getElementById('envelopeClickHint');
-            const nameInput = document.getElementById('name');
             const invitedAs = document.getElementById('invitedAs');
-            const rsvpNote = document.getElementById('rsvpInviteNote');
+            const rsvpBanner = document.getElementById('rsvpGuestBanner');
+            const rsvpFieldset = document.getElementById('rsvpFieldset');
 
             if (!normalized) {
                 if (heroEl) heroEl.textContent = DEFAULT_HERO_INVITE;
@@ -1051,12 +1062,13 @@
                     'content',
                     'Свадебное приглашение Олега и Катерины — 18 июля 2026'
                 );
-                if (nameInput) nameInput.removeAttribute('placeholder');
                 if (invitedAs) invitedAs.value = '';
-                if (rsvpNote) {
-                    rsvpNote.hidden = true;
-                    rsvpNote.textContent = '';
+                if (rsvpBanner) {
+                    rsvpBanner.className = 'rsvp-guest-banner rsvp-guest-banner--hint';
+                    rsvpBanner.textContent =
+                        'Подтвердить присутствие можно по персональной ссылке из приглашения — в адресе указано, для кого оно.';
                 }
+                if (rsvpFieldset) rsvpFieldset.disabled = true;
                 return;
             }
 
@@ -1075,11 +1087,19 @@
             );
             ensureMetaTag('property', 'og:description', true).setAttribute('content', desc);
 
-            if (nameInput) nameInput.placeholder = normalized;
             if (invitedAs) invitedAs.value = normalized;
-            if (rsvpNote) {
-                rsvpNote.hidden = false;
-                rsvpNote.textContent = `Это приглашение адресовано: ${normalized}`;
+            if (rsvpFieldset) rsvpFieldset.disabled = false;
+            if (rsvpBanner) {
+                rsvpBanner.className = 'rsvp-guest-banner';
+                rsvpBanner.innerHTML = '';
+                const lab = document.createElement('div');
+                lab.className = 'rsvp-guest-label';
+                lab.textContent = 'Приглашение для';
+                const names = document.createElement('div');
+                names.className = 'rsvp-guest-names';
+                names.textContent = normalized;
+                rsvpBanner.appendChild(lab);
+                rsvpBanner.appendChild(names);
             }
         }
 
