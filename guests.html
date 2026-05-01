@@ -128,6 +128,8 @@
     </main>
 
     <script>
+        const RSVP_STORAGE_KEY = "wedding_rsvp_status_v1";
+
         // Short invite codes (do not expose guest names in URL)
         const GUEST_CODES = [
             { id: "a7k2", name: "Светлана и Даниил" },
@@ -146,6 +148,35 @@
             base.searchParams.set("g", code);
             base.searchParams.set("v", "3");
             return base.toString();
+        }
+
+        function loadRsvpMap() {
+            try {
+                const raw = localStorage.getItem(RSVP_STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : {};
+                return parsed && typeof parsed === "object" ? parsed : {};
+            } catch (error) {
+                return {};
+            }
+        }
+
+        function getStatusMeta(guestCode) {
+            const map = loadRsvpMap();
+            const rec = map[`code:${guestCode}`];
+
+            if (!rec || !rec.status) {
+                return { text: "Без ответа", style: "background:#edf3f6;color:#4d6271;" };
+            }
+
+            if (rec.status === "yes") {
+                return { text: "Подтверждено", style: "background:#e8f8f1;color:#226d4a;" };
+            }
+
+            if (rec.status === "no") {
+                return { text: "Отказ", style: "background:#fdeeee;color:#8f3232;" };
+            }
+
+            return { text: "Без ответа", style: "background:#edf3f6;color:#4d6271;" };
         }
 
         async function shareGuest(guest) {
@@ -171,12 +202,16 @@
 
         function createCard(guest) {
             const inviteUrl = getInviteUrl(guest.id);
+            const status = getStatusMeta(guest.id);
 
             const card = document.createElement("article");
             card.className = "card";
             card.innerHTML = `
                 <div class="guest">${guest.name}</div>
                 <div class="url">${inviteUrl}</div>
+                <div style="font-size:12px;border-radius:999px;display:inline-block;padding:5px 10px;margin-bottom:12px;${status.style}">
+                    ${status.text}
+                </div>
                 <div class="actions">
                     <button class="primary" type="button">Поделиться</button>
                     <button class="secondary" type="button">Копировать</button>
@@ -209,6 +244,7 @@
         }
 
         renderGuests();
+        window.addEventListener("storage", renderGuests);
     </script>
 </body>
 </html>

@@ -822,6 +822,39 @@
             animation: slideIn 0.5s ease-out;
         }
 
+        .status-message {
+            display: none;
+            background: var(--cream);
+            border: 2px solid rgba(125, 211, 192, 0.4);
+            color: var(--text);
+            padding: 22px;
+            border-radius: 12px;
+            text-align: center;
+            line-height: 1.5;
+            margin-top: 16px;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 14px;
+        }
+
+        .status-reset-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 10px 16px;
+            background: #edf8f5;
+            color: var(--text);
+            cursor: pointer;
+            font-family: 'Jost', sans-serif;
+            font-size: 14px;
+        }
+
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -1057,6 +1090,8 @@
                 </fieldset>
             </form>
 
+            <div class="status-message" id="statusMessage"></div>
+
             <div class="success-message" id="successMessage">
                 ✓ Спасибо! Ваш ответ принят. Ждём вас на празднике!
             </div>
@@ -1078,6 +1113,7 @@
 
         const BASE_PAGE_TITLE = 'Олег & Катерина • 18.07.2026';
         const DEFAULT_HERO_INVITE = 'Приглашаем вас разделить с нами радость этого особенного дня';
+        const RSVP_STORAGE_KEY = 'wedding_rsvp_status_v1';
         const GUEST_BY_CODE = {
             a7k2: 'Светлана и Даниил',
             b4m9: 'Саша, Лена и Эмилия',
@@ -1089,6 +1125,97 @@
             h6v8: 'Зури и Натали',
             j1x3: 'Мама Оля и Папа Володя'
         };
+
+        let activeGuestStorageKey = '';
+
+        function loadRsvpMap() {
+            try {
+                const raw = localStorage.getItem(RSVP_STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : {};
+                return parsed && typeof parsed === 'object' ? parsed : {};
+            } catch (error) {
+                return {};
+            }
+        }
+
+        function saveRsvpMap(map) {
+            localStorage.setItem(RSVP_STORAGE_KEY, JSON.stringify(map));
+        }
+
+        function setStatusMessage(message, withResetButton) {
+            const statusMessage = document.getElementById('statusMessage');
+            if (!statusMessage) {
+                return;
+            }
+            statusMessage.innerHTML = message;
+            if (withResetButton) {
+                const actions = document.createElement('div');
+                actions.className = 'status-actions';
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'status-reset-btn';
+                btn.textContent = 'Отменить подтверждение';
+                btn.addEventListener('click', clearCurrentRsvp);
+                actions.appendChild(btn);
+                statusMessage.appendChild(actions);
+            }
+            statusMessage.classList.add('show');
+        }
+
+        function hideStatusMessage() {
+            const statusMessage = document.getElementById('statusMessage');
+            if (!statusMessage) {
+                return;
+            }
+            statusMessage.classList.remove('show');
+            statusMessage.innerHTML = '';
+        }
+
+        function setFormVisibility(showForm) {
+            const form = document.getElementById('rsvpForm');
+            const successMessage = document.getElementById('successMessage');
+            if (!form || !successMessage) {
+                return;
+            }
+            form.style.display = showForm ? '' : 'none';
+            successMessage.classList.remove('show');
+        }
+
+        function refreshRsvpUi() {
+            if (!activeGuestStorageKey) {
+                hideStatusMessage();
+                return;
+            }
+
+            const map = loadRsvpMap();
+            const record = map[activeGuestStorageKey];
+
+            if (!record || !record.status) {
+                hideStatusMessage();
+                setFormVisibility(true);
+                return;
+            }
+
+            const isYes = record.status === 'yes';
+            const label = isYes
+                ? 'Вы подтвердили своё присутствие.'
+                : 'Вы отметили, что не сможете присутствовать.';
+            const hint = 'Если ваши планы изменились, вы можете отменить подтверждение.';
+
+            setFormVisibility(false);
+            setStatusMessage(`${label} ${hint}`, true);
+        }
+
+        function clearCurrentRsvp() {
+            if (!activeGuestStorageKey) {
+                return;
+            }
+            const map = loadRsvpMap();
+            delete map[activeGuestStorageKey];
+            saveRsvpMap(map);
+            setFormVisibility(true);
+            hideStatusMessage();
+        }
 
         function ensureMetaTag(attrName, attrValue, propertyInstead) {
             const selector = propertyInstead
@@ -1115,6 +1242,11 @@
             const guestLegacy = params.get('guest');
             const guest = guestFromCode || (guestLegacy ? guestLegacy.trim() : '');
             const normalized = guest ? guest.replace(/\s+/g, ' ') : '';
+            activeGuestStorageKey = guestCode
+                ? `code:${guestCode}`
+                : normalized
+                    ? `legacy:${normalized.toLowerCase()}`
+                    : '';
 
             const heroEl = document.getElementById('heroInviteText');
             const previewEl = document.getElementById('guestNamePreview');
@@ -1139,6 +1271,7 @@
                         'Подтвердить присутствие можно по персональной ссылке из приглашения — в адресе указано, для кого оно.';
                 }
                 if (rsvpFieldset) rsvpFieldset.disabled = true;
+                hideStatusMessage();
                 return;
             }
 
@@ -1171,6 +1304,8 @@
                 rsvpBanner.appendChild(lab);
                 rsvpBanner.appendChild(names);
             }
+
+            refreshRsvpUi();
         }
 
         applyPersonalization();
@@ -1217,11 +1352,19 @@
             
             const formData = new FormData(event.target);
             const data = Object.fromEntries(formData.entries());
-            
-            console.log('RSVP Data:', data);
-            
-            document.getElementById('rsvpForm').style.display = 'none';
-            document.getElementById('successMessage').classList.add('show');
+
+            if (!activeGuestStorageKey) {
+                return;
+            }
+
+            const map = loadRsvpMap();
+            map[activeGuestStorageKey] = {
+                status: data.attending || '',
+                invited_as: data.invited_as || '',
+                updated_at: new Date().toISOString()
+            };
+            saveRsvpMap(map);
+            refreshRsvpUi();
         }
 
         // Smooth scroll for anchor links
