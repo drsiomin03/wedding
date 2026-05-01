@@ -1055,6 +1055,17 @@
 
         const BASE_PAGE_TITLE = 'Олег & Катерина • 18.07.2026';
         const DEFAULT_HERO_INVITE = 'Приглашаем вас разделить с нами радость этого особенного дня';
+        const GUEST_BY_CODE = {
+            a7k2: 'Светлана и Даниил',
+            b4m9: 'Саша, Лена и Эмилия',
+            c8q1: 'Женя, Серёжа, Наеми, Инес, Джоэль',
+            d3p6: 'Артур & Кристина',
+            e5t0: 'Оля',
+            f2n7: 'Света, Юра и Андрей',
+            g9r4: 'Марша и Титас',
+            h6v8: 'Зури и Натали',
+            j1x3: 'Мама Оля и Папа Володя'
+        };
 
         function ensureMetaTag(attrName, attrValue, propertyInstead) {
             const selector = propertyInstead
@@ -1075,8 +1086,12 @@
 
         function applyPersonalization() {
             const params = new URLSearchParams(window.location.search);
-            const guest = params.get('guest');
-            const normalized = guest ? guest.trim().replace(/\s+/g, ' ') : '';
+            const guestCodeRaw = params.get('g');
+            const guestCode = guestCodeRaw ? guestCodeRaw.trim().toLowerCase() : '';
+            const guestFromCode = guestCode ? GUEST_BY_CODE[guestCode] || '' : '';
+            const guestLegacy = params.get('guest');
+            const guest = guestFromCode || (guestLegacy ? guestLegacy.trim() : '');
+            const normalized = guest ? guest.replace(/\s+/g, ' ') : '';
 
             const heroEl = document.getElementById('heroInviteText');
             const previewEl = document.getElementById('guestNamePreview');

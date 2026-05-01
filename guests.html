@@ -122,39 +122,40 @@
         <h1>Персональные приглашения</h1>
         <p class="subtitle">Выберите гостя и отправьте ссылку в мессенджер</p>
         <div class="note">
-            Отредактируйте массив <code>GUESTS</code> внизу файла и добавьте ваш список имён.
+            Отредактируйте массив <code>GUEST_CODES</code> внизу файла и добавьте пары <code>{ id, name }</code>.
         </div>
         <div id="cards" class="cards"></div>
     </main>
 
     <script>
-        // Add your guest names here.
-        const GUESTS = [
-            "Светлана и Даниил",
-            "Саша, Лена и Эмилия",
-            "Женя, Серёжа, Наеми, Инес, Джоэль",
-            "Артур & Кристина",
-            "Оля",
-            "Света, Юра и Андрей",
-            "Марша и Титас",
-            "Зури и Натали",
-            "Мама Оля и Папа Володя"
+        // Short invite codes (do not expose guest names in URL)
+        const GUEST_CODES = [
+            { id: "a7k2", name: "Светлана и Даниил" },
+            { id: "b4m9", name: "Саша, Лена и Эмилия" },
+            { id: "c8q1", name: "Женя, Серёжа, Наеми, Инес, Джоэль" },
+            { id: "d3p6", name: "Артур & Кристина" },
+            { id: "e5t0", name: "Оля" },
+            { id: "f2n7", name: "Света, Юра и Андрей" },
+            { id: "g9r4", name: "Марша и Титас" },
+            { id: "h6v8", name: "Зури и Натали" },
+            { id: "j1x3", name: "Мама Оля и Папа Володя" }
         ];
 
-        function getInviteUrl(name) {
+        function getInviteUrl(code) {
             const base = new URL("./index.html", window.location.href);
-            base.searchParams.set("guest", name);
+            base.searchParams.set("g", code);
+            base.searchParams.set("v", "3");
             return base.toString();
         }
 
-        async function shareGuest(name) {
-            const url = getInviteUrl(name);
-            const text = `Именное приглашение на свадьбу для ${name}`;
+        async function shareGuest(guest) {
+            const url = getInviteUrl(guest.id);
+            const text = `Именное приглашение на свадьбу для ${guest.name}`;
 
             if (navigator.share) {
                 try {
                     await navigator.share({
-                        title: `Приглашение для ${name}`,
+                        title: `Приглашение для ${guest.name}`,
                         text,
                         url
                     });
@@ -168,16 +169,16 @@
             alert("Ссылка скопирована в буфер обмена.");
         }
 
-        function createCard(name) {
-            const inviteUrl = getInviteUrl(name);
-            const tg = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(`Именное приглашение для ${name}`)}`;
-            const wa = `https://wa.me/?text=${encodeURIComponent(`Именное приглашение для ${name}: ${inviteUrl}`)}`;
-            const viber = `viber://forward?text=${encodeURIComponent(`Именное приглашение для ${name}: ${inviteUrl}`)}`;
+        function createCard(guest) {
+            const inviteUrl = getInviteUrl(guest.id);
+            const tg = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(`Именное приглашение для ${guest.name}`)}`;
+            const wa = `https://wa.me/?text=${encodeURIComponent(`Именное приглашение для ${guest.name}: ${inviteUrl}`)}`;
+            const viber = `viber://forward?text=${encodeURIComponent(`Именное приглашение для ${guest.name}: ${inviteUrl}`)}`;
 
             const card = document.createElement("article");
             card.className = "card";
             card.innerHTML = `
-                <div class="guest">${name}</div>
+                <div class="guest">${guest.name}</div>
                 <div class="url">${inviteUrl}</div>
                 <div class="actions">
                     <button class="primary" type="button">Поделиться</button>
@@ -189,7 +190,7 @@
             `;
 
             const [shareBtn, copyBtn] = card.querySelectorAll("button");
-            shareBtn.addEventListener("click", () => shareGuest(name));
+            shareBtn.addEventListener("click", () => shareGuest(guest));
             copyBtn.addEventListener("click", async () => {
                 await navigator.clipboard.writeText(inviteUrl);
                 alert("Ссылка скопирована.");
@@ -202,11 +203,14 @@
             const cards = document.getElementById("cards");
             cards.innerHTML = "";
 
-            GUESTS.forEach((name) => {
-                if (!name || !name.trim()) {
+            GUEST_CODES.forEach((guest) => {
+                if (!guest || !guest.id || !guest.name) {
                     return;
                 }
-                cards.appendChild(createCard(name.trim()));
+                cards.appendChild(createCard({
+                    id: String(guest.id).trim().toLowerCase(),
+                    name: String(guest.name).trim()
+                }));
             });
         }
 
