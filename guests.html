@@ -250,6 +250,7 @@
         let guestCodes = INITIAL_GUEST_CODES.map((item) => ({ ...item }));
         let editingId = null;
         let editSelectedNames = [];
+        let loadingGuests = false;
 
         function parseNames(value) {
             return String(value || "")
@@ -301,6 +302,12 @@
         function randomToken() {
             const part = () => Math.random().toString(36).slice(2, 8);
             return `tk_${part()}${part()}`;
+        }
+
+        function assertAdminReady() {
+            if (!window.RSVP_DB || !window.RSVP_DB.isConfigured() || !window.RSVP_DB.hasAdminToken()) {
+                throw new Error("Не настроены Supabase или GUESTS_ADMIN_TOKEN в rsvp-db.js");
+            }
         }
 
         function getInviteUrl(code, token) {
@@ -384,6 +391,38 @@
             return card;
         }
 
+        async function loadGuestsFromDb() {
+            assertAdminReady();
+            const result = await window.RSVP_DB.listGuests();
+            const guests = Array.isArray(result.guests) ? result.guests : [];
+            if (guests.length === 0) {
+                for (const seed of INITIAL_GUEST_CODES) {
+                    // bootstrap DB from initial file once
+                    // eslint-disable-next-line no-await-in-loop
+                    await window.RSVP_DB.upsertGuest({
+                        code: seed.id,
+                        token: seed.token,
+                        name: seed.name
+                    });
+                }
+                const afterSeed = await window.RSVP_DB.listGuests();
+                const seededGuests = Array.isArray(afterSeed.guests) ? afterSeed.guests : [];
+                guestCodes = seededGuests.map((g) => ({
+                    id: String(g.code || "").trim().toLowerCase(),
+                    token: String(g.token || "").trim(),
+                    name: String(g.name || "").trim(),
+                    status: g.status || null
+                })).filter((g) => g.id && g.token && g.name);
+                return;
+            }
+            guestCodes = guests.map((g) => ({
+                id: String(g.code || "").trim().toLowerCase(),
+                token: String(g.token || "").trim(),
+                name: String(g.name || "").trim(),
+                status: g.status || null
+            })).filter((g) => g.id && g.token && g.name);
+        }
+
         async function renderGuests() {
             const cards = document.getElementById("cards");
             cards.innerHTML = "";
@@ -400,17 +439,8 @@
                 });
             });
 
-            let statuses = {};
-            if (window.RSVP_DB && window.RSVP_DB.isConfigured()) {
-                try {
-                    statuses = await window.RSVP_DB.getStatuses(normalizedGuests.map((g) => g.id));
-                } catch (error) {
-                    statuses = {};
-                }
-            }
-
             normalizedGuests.forEach((guest) => {
-                cards.appendChild(createCard(guest, statuses[guest.id]));
+                cards.appendChild(createCard(guest, { status: guest.status || null }));
             });
 
             document.getElementById("total-counter").textContent = `Всего гостей: ${totalGuestsCount()}`;
@@ -473,7 +503,7 @@
             renderEditorOptions();
         }
 
-        function saveEditModal() {
+        async function saveEditModal() {
             if (!editingId) {
                 return;
             }
@@ -483,19 +513,47 @@
                 return;
             }
             guest.name = formatNames(editSelectedNames);
+            try {
+                assertAdminReady();
+                await window.RSVP_DB.upsertGuest({
+                    code: guest.id,
+                    token: guest.token,
+                    name: guest.name
+                });
+            } catch (error) {
+                alert("Не удалось сохранить в БД. Проверьте настройку Supabase.");
+                return;
+            }
             closeEditModal();
-            renderGuests();
+            await loadGuestsFromDb();
+            await renderGuests();
         }
 
-        function addCard() {
+        async function addCard() {
             const newGuest = { id: uniqueId(), token: randomToken(), name: "Новый гость" };
             guestCodes.push(newGuest);
-            renderGuests().then(() => openEditModal(newGuest.id));
+            try {
+                assertAdminReady();
+                await window.RSVP_DB.upsertGuest({
+                    code: newGuest.id,
+                    token: newGuest.token,
+                    name: newGuest.name
+                });
+                await loadGuestsFromDb();
+                await renderGuests();
+                openEditModal(newGuest.id);
+            } catch (error) {
+                alert("Не удалось добавить карточку в БД.");
+            }
         }
 
-        document.getElementById("add-card-btn").addEventListener("click", addCard);
+        document.getElementById("add-card-btn").addEventListener("click", () => {
+            addCard();
+        });
         document.getElementById("close-edit-btn").addEventListener("click", closeEditModal);
-        document.getElementById("save-edit-btn").addEventListener("click", saveEditModal);
+        document.getElementById("save-edit-btn").addEventListener("click", () => {
+            saveEditModal();
+        });
         document.getElementById("new-name-btn").addEventListener("click", addNameFromInput);
         document.getElementById("new-name-input").addEventListener("keydown", (event) => {
             if (event.key === "Enter") {
@@ -508,7 +566,17 @@
             }
         });
 
-        renderGuests();
+        (async () => {
+            try {
+                loadingGuests = true;
+                await loadGuestsFromDb();
+            } catch (error) {
+                alert("Не удалось загрузить гостей из БД. Проверьте SUPABASE_URL / ключи / GUESTS_ADMIN_TOKEN.");
+            } finally {
+                loadingGuests = false;
+            }
+            await renderGuests();
+        })();
     </script>
 </body>
 </html>

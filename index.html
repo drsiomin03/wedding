@@ -1239,13 +1239,21 @@
             return el;
         }
 
-        function applyPersonalization() {
+        async function applyPersonalization() {
             const params = new URLSearchParams(window.location.search);
             const guestCodeRaw = params.get('g');
             const guestCode = guestCodeRaw ? guestCodeRaw.trim().toLowerCase() : '';
             const guestTokenRaw = params.get('t');
             const guestToken = guestTokenRaw ? guestTokenRaw.trim() : '';
-            const guestFromCode = guestCode ? GUEST_BY_CODE[guestCode] || '' : '';
+            let guestFromCode = guestCode ? GUEST_BY_CODE[guestCode] || '' : '';
+            if (!guestFromCode && guestCode && window.RSVP_DB && window.RSVP_DB.isConfigured()) {
+                try {
+                    const meta = await window.RSVP_DB.getInviteMeta(guestCode);
+                    guestFromCode = meta && meta.name ? String(meta.name) : '';
+                } catch (error) {
+                    guestFromCode = '';
+                }
+            }
             const guestLegacy = params.get('guest');
             const guest = guestFromCode || (guestLegacy ? guestLegacy.trim() : '');
             const normalized = guest ? guest.replace(/\s+/g, ' ') : '';

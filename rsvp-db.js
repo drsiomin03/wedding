@@ -1,6 +1,7 @@
 (function () {
     const SUPABASE_URL = "https://uiauuqblbuijgtlpbgeq.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_OILlOPnB8q7WmHaKp-ZCsA_G9wY5MiV";
+    const GUESTS_ADMIN_TOKEN = "adm_Guests_2026_5f8r2LmQ";
     const TABLE = "invites";
     const FUNCTION_NAME = "rsvp";
 
@@ -10,6 +11,13 @@
             SUPABASE_ANON_KEY &&
             !SUPABASE_URL.includes("YOUR_PROJECT_REF") &&
             !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY")
+        );
+    }
+
+    function hasAdminToken() {
+        return (
+            GUESTS_ADMIN_TOKEN &&
+            !GUESTS_ADMIN_TOKEN.includes("YOUR_GUESTS_ADMIN_TOKEN")
         );
     }
 
@@ -82,6 +90,15 @@
         return rows[0];
     }
 
+    async function getInviteMeta(code) {
+        const safe = encodeURIComponent(code);
+        const rows = await request("GET", `${TABLE}?select=code,name,status,updated_at&code=eq.${safe}&limit=1`, null);
+        if (!rows || rows.length === 0) {
+            return null;
+        }
+        return rows[0];
+    }
+
     async function setInviteStatus(invite) {
         const status = normalizeStatus(invite.status);
         if (!status) {
@@ -102,6 +119,41 @@
             action: "clear",
             code,
             token
+        });
+    }
+
+    async function listGuests() {
+        if (!hasAdminToken()) {
+            throw new Error("Guests admin token is not configured.");
+        }
+        return functionRequest({
+            action: "admin_list",
+            admin_token: GUESTS_ADMIN_TOKEN
+        });
+    }
+
+    async function upsertGuest(guest) {
+        if (!hasAdminToken()) {
+            throw new Error("Guests admin token is not configured.");
+        }
+        const payload = {
+            action: "admin_upsert",
+            admin_token: GUESTS_ADMIN_TOKEN,
+            code: guest.code,
+            name: guest.name,
+            token: guest.token
+        };
+        return functionRequest(payload);
+    }
+
+    async function deleteGuest(code) {
+        if (!hasAdminToken()) {
+            throw new Error("Guests admin token is not configured.");
+        }
+        return functionRequest({
+            action: "admin_delete",
+            admin_token: GUESTS_ADMIN_TOKEN,
+            code
         });
     }
 
@@ -129,9 +181,14 @@
 
     window.RSVP_DB = {
         isConfigured,
+        hasAdminToken,
+        getInviteMeta,
         getInviteStatus,
         setInviteStatus,
         clearInviteStatus,
-        getStatuses
+        getStatuses,
+        listGuests,
+        upsertGuest,
+        deleteGuest
     };
 })();

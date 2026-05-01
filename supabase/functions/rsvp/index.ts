@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const GUESTS_ADMIN_TOKEN = Deno.env.get("GUESTS_ADMIN_TOKEN") || "";
 
 function sha256Hex(input: string) {
     const bytes = new TextEncoder().encode(input);
@@ -23,6 +24,34 @@ function bad(message: string, status = 400) {
         status,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
+}
+
+function ok(body: Record<string, unknown>) {
+    return new Response(JSON.stringify(body), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+}
+
+async function verifyInviteToken(
+    supabase: ReturnType<typeof createClient>,
+    code: string,
+    token: string
+) {
+    const tokenHash = await sha256Hex(token);
+    const { data: tokenRow, error: tokenErr } = await supabase
+        .from("invite_tokens")
+        .select("code,token_hash")
+        .eq("code", code)
+        .maybeSingle();
+
+    if (tokenErr) {
+        throw new Error(`Token check failed: ${tokenErr.message}`);
+    }
+
+    if (!tokenRow || tokenRow.token_hash !== tokenHash) {
+        return false;
+    }
+    return true;
 }
 
 Deno.serve(async (req) => {
@@ -45,39 +74,116 @@ Deno.serve(async (req) => {
         return bad("Invalid JSON payload");
     }
 
-    const action = payload?.action;
-    const code = String(payload?.code || "").trim().toLowerCase();
-    const token = String(payload?.token || "").trim();
-
-    if (!action || !code || !token) {
-        return bad("action, code and token are required");
+    const action = String(payload?.action || "").trim();
+    if (!action) {
+        return bad("action is required");
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    const tokenHash = await sha256Hex(token);
-    const { data: tokenRow, error: tokenErr } = await supabase
-        .from("invite_tokens")
-        .select("code,token_hash")
-        .eq("code", code)
-        .maybeSingle();
+    if (action === "admin_list" || action === "admin_upsert" || action === "admin_delete") {
+        const adminToken = String(payload?.admin_token || "").trim();
+        if (!GUESTS_ADMIN_TOKEN) {
+            return bad("Admin token is not configured on server", 500);
+        }
+        if (!adminToken || adminToken !== GUESTS_ADMIN_TOKEN) {
+            return bad("Invalid admin token", 403);
+        }
 
-    if (tokenErr) {
-        return bad(`Token check failed: ${tokenErr.message}`, 500);
-    }
+        if (action === "admin_list") {
+            const { data, error } = await supabase
+                .from("invites")
+                .select("code,name,status,updated_at,invite_tokens(token_plain)")
+                .order("code", { ascending: true });
 
-    if (!tokenRow || tokenRow.token_hash !== tokenHash) {
-        return bad("Invalid invite token", 403);
+            if (error) {
+                return bad(`Failed to list guests: ${error.message}`, 500);
+            }
+
+            // no plain tokens in DB; admin provides/updates them from guests.html
+            const rows = (data || []).map((row: any) => ({
+                code: row.code,
+                name: row.name,
+                token: row.invite_tokens?.token_plain || "",
+                status: row.status || null,
+                updated_at: row.updated_at || null
+            }));
+            return ok({ guests: rows });
+        }
+
+        if (action === "admin_upsert") {
+            const code = String(payload?.code || "").trim().toLowerCase();
+            const name = String(payload?.name || "").trim();
+            const token = String(payload?.token || "").trim();
+            if (!code || !name || !token) {
+                return bad("code, name and token are required");
+            }
+
+            const tokenHash = await sha256Hex(token);
+            const nowIso = new Date().toISOString();
+
+            const { error: inviteErr } = await supabase.from("invites").upsert(
+                {
+                    code,
+                    name,
+                    updated_at: nowIso
+                },
+                { onConflict: "code" }
+            );
+            if (inviteErr) {
+                return bad(`Failed to upsert invite: ${inviteErr.message}`, 500);
+            }
+
+            const { error: tokenErr } = await supabase.from("invite_tokens").upsert(
+                {
+                    code,
+                    token_plain: token,
+                    token_hash: tokenHash
+                },
+                { onConflict: "code" }
+            );
+            if (tokenErr) {
+                return bad(`Failed to upsert token: ${tokenErr.message}`, 500);
+            }
+
+            return ok({ ok: true });
+        }
+
+        if (action === "admin_delete") {
+            const code = String(payload?.code || "").trim().toLowerCase();
+            if (!code) {
+                return bad("code is required");
+            }
+            await supabase.from("invite_tokens").delete().eq("code", code);
+            const { error } = await supabase.from("invites").delete().eq("code", code);
+            if (error) {
+                return bad(`Failed to delete invite: ${error.message}`, 500);
+            }
+            return ok({ ok: true });
+        }
     }
 
     if (action === "set") {
+        const code = String(payload?.code || "").trim().toLowerCase();
+        const token = String(payload?.token || "").trim();
         const status = payload?.status;
         const name = String(payload?.name || "").trim();
+        if (!code || !token) {
+            return bad("code and token are required");
+        }
         if (status !== "yes" && status !== "no") {
             return bad("status must be yes or no");
         }
         if (!name) {
             return bad("name is required");
+        }
+        try {
+            const valid = await verifyInviteToken(supabase, code, token);
+            if (!valid) {
+                return bad("Invalid invite token", 403);
+            }
+        } catch (error) {
+            return bad((error as Error).message, 500);
         }
 
         const { error } = await supabase.from("invites").upsert(
@@ -94,20 +200,30 @@ Deno.serve(async (req) => {
             return bad(`Failed to save RSVP: ${error.message}`, 500);
         }
 
-        return new Response(JSON.stringify({ ok: true }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+        return ok({ ok: true });
     }
 
     if (action === "clear") {
+        const code = String(payload?.code || "").trim().toLowerCase();
+        const token = String(payload?.token || "").trim();
+        if (!code || !token) {
+            return bad("code and token are required");
+        }
+        try {
+            const valid = await verifyInviteToken(supabase, code, token);
+            if (!valid) {
+                return bad("Invalid invite token", 403);
+            }
+        } catch (error) {
+            return bad((error as Error).message, 500);
+        }
+
         const { error } = await supabase.from("invites").delete().eq("code", code);
         if (error) {
             return bad(`Failed to clear RSVP: ${error.message}`, 500);
         }
 
-        return new Response(JSON.stringify({ ok: true }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+        return ok({ ok: true });
     }
 
     return bad("Unknown action");
