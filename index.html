@@ -1103,6 +1103,7 @@
         </footer>
     </div>
 
+    <script src="./rsvp-db.js"></script>
     <script>
         // Envelope Animation
         const envelopeContainer = document.getElementById('envelopeContainer');
@@ -1113,7 +1114,6 @@
 
         const BASE_PAGE_TITLE = 'Олег & Катерина • 18.07.2026';
         const DEFAULT_HERO_INVITE = 'Приглашаем вас разделить с нами радость этого особенного дня';
-        const RSVP_STORAGE_KEY = 'wedding_rsvp_status_v1';
         const GUEST_BY_CODE = {
             a7k2: 'Светлана и Даниил',
             b4m9: 'Саша, Лена и Эмилия',
@@ -1126,21 +1126,8 @@
             j1x3: 'Мама Оля и Папа Володя'
         };
 
-        let activeGuestStorageKey = '';
-
-        function loadRsvpMap() {
-            try {
-                const raw = localStorage.getItem(RSVP_STORAGE_KEY);
-                const parsed = raw ? JSON.parse(raw) : {};
-                return parsed && typeof parsed === 'object' ? parsed : {};
-            } catch (error) {
-                return {};
-            }
-        }
-
-        function saveRsvpMap(map) {
-            localStorage.setItem(RSVP_STORAGE_KEY, JSON.stringify(map));
-        }
+        let activeGuestCode = '';
+        let activeGuestName = '';
 
         function setStatusMessage(message, withResetButton) {
             const statusMessage = document.getElementById('statusMessage');
@@ -1155,7 +1142,9 @@
                 btn.type = 'button';
                 btn.className = 'status-reset-btn';
                 btn.textContent = 'Отменить подтверждение';
-                btn.addEventListener('click', clearCurrentRsvp);
+                btn.addEventListener('click', () => {
+                    clearCurrentRsvp();
+                });
                 actions.appendChild(btn);
                 statusMessage.appendChild(actions);
             }
@@ -1181,14 +1170,24 @@
             successMessage.classList.remove('show');
         }
 
-        function refreshRsvpUi() {
-            if (!activeGuestStorageKey) {
+        async function refreshRsvpUi() {
+            if (!activeGuestCode) {
                 hideStatusMessage();
                 return;
             }
+            if (!window.RSVP_DB || !window.RSVP_DB.isConfigured()) {
+                hideStatusMessage();
+                setFormVisibility(true);
+                return;
+            }
 
-            const map = loadRsvpMap();
-            const record = map[activeGuestStorageKey];
+            let record = null;
+            try {
+                record = await window.RSVP_DB.getInviteStatus(activeGuestCode);
+            } catch (error) {
+                setStatusMessage('Не удалось загрузить статус RSVP. Попробуйте позже.', false);
+                return;
+            }
 
             if (!record || !record.status) {
                 hideStatusMessage();
@@ -1206,15 +1205,20 @@
             setStatusMessage(`${label} ${hint}`, true);
         }
 
-        function clearCurrentRsvp() {
-            if (!activeGuestStorageKey) {
+        async function clearCurrentRsvp() {
+            if (!activeGuestCode) {
                 return;
             }
-            const map = loadRsvpMap();
-            delete map[activeGuestStorageKey];
-            saveRsvpMap(map);
-            setFormVisibility(true);
-            hideStatusMessage();
+            if (!window.RSVP_DB || !window.RSVP_DB.isConfigured()) {
+                return;
+            }
+            try {
+                await window.RSVP_DB.clearInviteStatus(activeGuestCode);
+                setFormVisibility(true);
+                hideStatusMessage();
+            } catch (error) {
+                setStatusMessage('Не удалось отменить подтверждение. Попробуйте позже.', false);
+            }
         }
 
         function ensureMetaTag(attrName, attrValue, propertyInstead) {
@@ -1242,11 +1246,11 @@
             const guestLegacy = params.get('guest');
             const guest = guestFromCode || (guestLegacy ? guestLegacy.trim() : '');
             const normalized = guest ? guest.replace(/\s+/g, ' ') : '';
-            activeGuestStorageKey = guestCode
-                ? `code:${guestCode}`
-                : normalized
-                    ? `legacy:${normalized.toLowerCase()}`
-                    : '';
+            const resolvedCodeFromLegacy = Object.keys(GUEST_BY_CODE).find(
+                (code) => GUEST_BY_CODE[code] === normalized
+            ) || '';
+            activeGuestCode = guestCode || resolvedCodeFromLegacy || '';
+            activeGuestName = normalized || '';
 
             const heroEl = document.getElementById('heroInviteText');
             const previewEl = document.getElementById('guestNamePreview');
@@ -1267,8 +1271,9 @@
                 if (invitedAs) invitedAs.value = '';
                 if (rsvpBanner) {
                     rsvpBanner.className = 'rsvp-guest-banner rsvp-guest-banner--hint';
-                    rsvpBanner.textContent =
-                        'Подтвердить присутствие можно по персональной ссылке из приглашения — в адресе указано, для кого оно.';
+                    rsvpBanner.textContent = window.RSVP_DB && window.RSVP_DB.isConfigured()
+                        ? 'Подтвердить присутствие можно по персональной ссылке из приглашения — в адресе указано, для кого оно.'
+                        : 'RSVP временно недоступен: подключите Supabase в файле rsvp-db.js.';
                 }
                 if (rsvpFieldset) rsvpFieldset.disabled = true;
                 hideStatusMessage();
@@ -1347,24 +1352,30 @@
         setInterval(updateCountdown, 1000);
 
         // Form Submission
-        function handleSubmit(event) {
+        async function handleSubmit(event) {
             event.preventDefault();
             
             const formData = new FormData(event.target);
             const data = Object.fromEntries(formData.entries());
 
-            if (!activeGuestStorageKey) {
+            if (!activeGuestCode) {
+                return;
+            }
+            if (!window.RSVP_DB || !window.RSVP_DB.isConfigured()) {
+                setStatusMessage('RSVP недоступен: не настроен Supabase.', false);
                 return;
             }
 
-            const map = loadRsvpMap();
-            map[activeGuestStorageKey] = {
-                status: data.attending || '',
-                invited_as: data.invited_as || '',
-                updated_at: new Date().toISOString()
-            };
-            saveRsvpMap(map);
-            refreshRsvpUi();
+            try {
+                await window.RSVP_DB.setInviteStatus({
+                    code: activeGuestCode,
+                    name: activeGuestName || data.invited_as || '',
+                    status: data.attending || ''
+                });
+                await refreshRsvpUi();
+            } catch (error) {
+                setStatusMessage('Не удалось сохранить ответ. Попробуйте позже.', false);
+            }
         }
 
         // Smooth scroll for anchor links

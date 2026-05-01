@@ -127,8 +127,8 @@
         <div id="cards" class="cards"></div>
     </main>
 
+    <script src="./rsvp-db.js"></script>
     <script>
-        const RSVP_STORAGE_KEY = "wedding_rsvp_status_v1";
 
         // Short invite codes (do not expose guest names in URL)
         const GUEST_CODES = [
@@ -150,20 +150,7 @@
             return base.toString();
         }
 
-        function loadRsvpMap() {
-            try {
-                const raw = localStorage.getItem(RSVP_STORAGE_KEY);
-                const parsed = raw ? JSON.parse(raw) : {};
-                return parsed && typeof parsed === "object" ? parsed : {};
-            } catch (error) {
-                return {};
-            }
-        }
-
-        function getStatusMeta(guestCode) {
-            const map = loadRsvpMap();
-            const rec = map[`code:${guestCode}`];
-
+        function getStatusMeta(rec) {
             if (!rec || !rec.status) {
                 return { text: "Без ответа", style: "background:#edf3f6;color:#4d6271;" };
             }
@@ -200,9 +187,9 @@
             alert("Ссылка скопирована в буфер обмена.");
         }
 
-        function createCard(guest) {
+        function createCard(guest, statusRec) {
             const inviteUrl = getInviteUrl(guest.id);
-            const status = getStatusMeta(guest.id);
+            const status = getStatusMeta(statusRec);
 
             const card = document.createElement("article");
             card.className = "card";
@@ -228,23 +215,36 @@
             return card;
         }
 
-        function renderGuests() {
+        async function renderGuests() {
             const cards = document.getElementById("cards");
             cards.innerHTML = "";
+            const normalizedGuests = [];
 
             GUEST_CODES.forEach((guest) => {
                 if (!guest || !guest.id || !guest.name) {
                     return;
                 }
-                cards.appendChild(createCard({
+                normalizedGuests.push({
                     id: String(guest.id).trim().toLowerCase(),
                     name: String(guest.name).trim()
-                }));
+                });
+            });
+
+            let statuses = {};
+            if (window.RSVP_DB && window.RSVP_DB.isConfigured()) {
+                try {
+                    statuses = await window.RSVP_DB.getStatuses(normalizedGuests.map((g) => g.id));
+                } catch (error) {
+                    statuses = {};
+                }
+            }
+
+            normalizedGuests.forEach((guest) => {
+                cards.appendChild(createCard(guest, statuses[guest.id]));
             });
         }
 
         renderGuests();
-        window.addEventListener("storage", renderGuests);
     </script>
 </body>
 </html>
